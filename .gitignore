@@ -1,1 +1,10 @@
 COMMANDS.md
+
+venv/
+.env
+.DS_Store
+.idea/
+.pytest_cache/
+.ruff_cache/
+.vscode/
+.cursor/
