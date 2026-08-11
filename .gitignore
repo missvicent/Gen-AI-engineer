@@ -8,3 +8,6 @@ venv/
 .ruff_cache/
 .vscode/
 .cursor/
+__pycache__/
+CLAUDE.md
+.claude/
