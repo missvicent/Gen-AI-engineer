@@ -1,6 +1,6 @@
 """
-This module implements a universal LLM client that supports multiple providers (OpenAI, Claude, Gemini, Ollama, MLX) 
-via a unified interface. It normalizes outputs—especially tool calls—so downstream code works identically across providers. 
+This module implements a universal LLM client that supports multiple providers (OpenAI, Claude, Gemini, Ollama, MLX)
+via a unified interface. It normalizes outputs—especially tool calls—so downstream code works identically across providers.
 The client enforces schema validation for extraction, flagging incomplete/invalid model responses.
 Core concepts include the 'prompt', optional 'temperature', models, tools, and schema-driven extraction.
 Configuration determines provider, not code changes.
@@ -40,7 +40,6 @@ def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
 
-
 # Gemini's OpenAI endpoint, Ollama, MLX) share one adapter — only base_url and
 # model differ. Keys: "gpt", "claude", "gemini", "local", "mlx".
 PROVIDERS: dict[str, Provider] = {
@@ -48,7 +47,7 @@ PROVIDERS: dict[str, Provider] = {
     "local": Provider(_env("BASE_URL"), _env("OLLAMA_API_KEY"), "qwen3.5:9b"),
     "claude": Provider(None, _env("ANTHROPIC_API_KEY"), "claude-sonnet-4-6"),
     "gemini": Provider(None, _env("GEMINI_API_KEY"), "gemini-2.5-flash"),
-    "mlx": Provider(None, _env("MLX_API_KEY"), "mlx-01-flash"),  
+    "mlx": Provider(None, _env("MLX_API_KEY"), "mlx-01-flash"),
 }
 
 
@@ -69,14 +68,14 @@ def complete(prompt: str, provider: str = "local", temperature: float = 0.2) -> 
             model=p.model,
             max_tokens=1024,
             temperature=temperature,
-            messages=[ {"role": "user", "content": prompt} ]
+            messages=[{"role": "user", "content": prompt}],
         )
         return "".join(block.text for block in resp.content if block.type == "text")
     else:
         resp = _openai_client(p).chat.completions.create(
             model=p.model,
             temperature=temperature,
-            messages=[ {"role": "user", "content": prompt} ]
+            messages=[{"role": "user", "content": prompt}],
         )
         return resp.choices[0].message.content or ""
 
@@ -86,12 +85,12 @@ def stream(
 ) -> Iterator[str]:
     """skip chunks with no choices and None deltas"""
     p = PROVIDERS[provider]
-    if provider == 'claude':
+    if provider == "claude":
         with _anthropic_client(p).messages.stream(
             model=p.model,
             max_tokens=1024,
             temperature=temperature,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
         ) as stream:
             yield from stream.text_stream()
     else:
@@ -99,11 +98,12 @@ def stream(
             model=p.model,
             temperature=temperature,
             messages=[{"role": "user", "content": prompt}],
-            stream=True
+            stream=True,
         )
         for chunk in chunks:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
+
 
 def call_tool(
     prompt: str,
@@ -122,17 +122,17 @@ def call_tool(
             temperature=temperature,
             tools=[
                 {
-                    "type": tool["type"], 
-                    "name": tool["name"], 
-                    "description": tool["description"], 
-                    "parameters": tool["parameters"]
-                } for tool in tools
+                    "type": tool["type"],
+                    "name": tool["name"],
+                    "description": tool["description"],
+                    "parameters": tool["parameters"],
+                }
+                for tool in tools
             ],
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
         )
         for block in resp.content:
             if block.type == "tool_use":
-
                 return ToolCall(name=block.name, args=dict(block.input))
             return "".join(block.text for block in resp.content if block.type == "text")
     else:
@@ -140,19 +140,15 @@ def call_tool(
             model=p.model,
             temperature=temperature,
             messages=[{"role": "user", "content": prompt}],
-            tools= [
-                {
-                    "type": "function",
-                    "function": tool
-                } for tool in tools
-            ],
-            tool_choice="auto"
+            tools=[{"type": "function", "function": tool} for tool in tools],
+            tool_choice="auto",
         )
         msg = resp.choices[0].message
         if msg.tool_calls:
             call = msg.tool_calls[0]
             return ToolCall(name=call.function.name, args=dict(call.function.arguments))
         return msg.content or ""
+
 
 def extract(
     prompt: str,
@@ -171,12 +167,15 @@ def extract(
             temperature=temperature,
             messages=[{"role": "user", "content": prompt}],
             tools=[
-                {"name": "extract", "description": "Return the extraction.", 
-                "input_schema": {
-                    "type": "object",
-                    "properties": schema,
-                    "required": schema.keys(),
-                }}
+                {
+                    "name": "extract",
+                    "description": "Return the extraction.",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": schema,
+                        "required": schema.keys(),
+                    },
+                }
             ],
             tool_choice={"type": "tool", "name": "extract"},
         )
@@ -197,9 +196,13 @@ def extract(
         raise ValueError(f"Missing required keys: {missing}")
     return data
 
+
 def __main__():
-    for chunk in stream("if the shih tzu the most popular dog in the world, how many shih tzus are there in the world?"):
+    for chunk in stream(
+        "if the shih tzu the most popular dog in the world, how many shih tzus are there in the world?"
+    ):
         print(chunk, end="", flush=True)
+
 
 if __name__ == "__main__":
     __main__()
