@@ -8,10 +8,12 @@ dependencies = [
     "anthropic>=0.121.0",
     "openai>=2.53.0",
     "python-dotenv>=1.2.2",
+    "tiktoken>=0.13.0",
 ]
 
 [dependency-groups]
 dev = [
+    "pytest>=9.1.1",
     "ruff>=0.16.2",
 ]
 [tool.ruff]

@@ -1,9 +1,11 @@
 """
-This module implements a universal LLM client that supports multiple providers (OpenAI, Claude, Gemini, Ollama, MLX)
-via a unified interface. It normalizes outputs—especially tool calls—so downstream code works identically across providers.
-The client enforces schema validation for extraction, flagging incomplete/invalid model responses.
-Core concepts include the 'prompt', optional 'temperature', models, tools, and schema-driven extraction.
-Configuration determines provider, not code changes.
+This module implements a universal LLM client that supports multiple
+providers (OpenAI, Claude, Gemini, Ollama, MLX) via a unified interface.
+It normalizes outputs—especially tool calls—so downstream code works
+identically across providers. The client enforces schema validation for
+extraction, flagging incomplete/invalid model responses. Core concepts
+include the 'prompt', optional 'temperature', models, tools, and
+schema-driven extraction. Configuration determines provider, not code.
 """
 
 from __future__ import annotations
@@ -199,7 +201,8 @@ def extract(
 
 def __main__():
     for chunk in stream(
-        "if the shih tzu the most popular dog in the world, how many shih tzus are there in the world?"
+        "if the shih tzu is the most popular dog in the world, "
+        "how many shih tzus are there in the world?",
     ):
         print(chunk, end="", flush=True)
 
