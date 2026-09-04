@@ -16,6 +16,7 @@ The Invoice model is given. Note the constraints live in the type (`min_length`,
 
 Reference: ../after/src/extract.py.
 """
+
 from __future__ import annotations
 
 import os
@@ -30,6 +31,7 @@ from pydantic import BaseModel, Field, ValidationError
 load_dotenv()
 
 LOCAL_MODEL = "qwen3.5:9b"
+
 
 class Invoice(BaseModel):
     vendor: str = Field(min_length=1)
@@ -48,7 +50,7 @@ def build_client(provider: str = "local") -> Extractor:
         base = OpenAI(base_url=os.getenv("BASE_URL"), api_key="ollama")
         patched = instructor.from_openai(base, mode=instructor.Mode.JSON)
     else:
-        patched = instructor.from_openai(OpenAI())  
+        patched = instructor.from_openai(OpenAI())
     return patched.chat.completions
 
 
@@ -62,7 +64,7 @@ def extract_invoice(
     return extractor.create(
         model=model,
         response_model=Invoice,
-        messages=[{"role": "user", "content": text}]
+        messages=[{"role": "user", "content": text}],
     )
 
 
@@ -113,9 +115,10 @@ def field_accuracy(
     # - Gets all field names from the Invoice class.
     # - If there are no expected rows, returns 0.0 for each field.
     # - Otherwise, for each field:
-    #   - Counts the number of times the model's value (`have`) matches the expected value (`want`)
-    #     (ignoring case/strip for strings, tolerance for total as in _same()).
-    #   - Divides the count by the number of expected rows to get the per-field accuracy.
+    #   - Counts the number of times the model's value (`have`) matches the
+    #     expected value (`want`) — ignoring case/strip for strings, tolerance
+    #     for total as in _same().
+    #   - Divides the count by the number of expected rows for per-field accuracy.
     # - Returns a dict like: {'vendor': 0.9, 'date': 0.7, 'total': 0.8}
     fields = list(Invoice.model_fields)
     if not expected:
@@ -135,6 +138,7 @@ def _same(want: Any, have: Any) -> bool:
     if isinstance(want, float) and isinstance(have, float):
         return abs(want - have) < 0.01
     return str(want).strip().casefold() == str(have).strip().casefold()
+
 
 def compare_providers(
     texts: list[str],
@@ -165,9 +169,10 @@ def compare_providers(
                 violations.append(f"{text[:40]}... {type(e).__name__}")
         rows[name] = {
             "violation_rate": violation_rate(texts, violations),
-            **field_accuracy(got, expected)
+            **field_accuracy(got, expected),
         }
     return rows
+
 
 if __name__ == "__main__":
     inv = extract_invoice("Acme Corp billed us $4,231.50 on July 3rd 2026.")

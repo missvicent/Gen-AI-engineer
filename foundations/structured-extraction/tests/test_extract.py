@@ -4,6 +4,7 @@ A fake extractor stands in for the Instructor-patched client. That is the only
 reason `extract_all` and `violation_rate` can be tested at all — and it is the
 reason this test file fails in `before/` until those functions exist.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -136,11 +137,13 @@ def test_the_comparison_runs_over_any_two_clients():
     comparison, and a procedure that needs two API keys to execute is one nobody
     can check. Point it at real clients and it is the same function."""
     frontier = FakeExtractor(dict(zip(TEXTS, TRUTH, strict=True)))
-    laptop = FakeExtractor({
-        GOOD: Invoice(vendor="Acme Corp", date="2026-07-03", total=4231.50),
-        SECOND: Invoice(vendor="Globex", date="14/02/2026", total=90.0),
-        THIRD: ValueError("could not satisfy schema after retries"),
-    })
+    laptop = FakeExtractor(
+        {
+            GOOD: Invoice(vendor="Acme Corp", date="2026-07-03", total=4231.50),
+            SECOND: Invoice(vendor="Globex", date="14/02/2026", total=90.0),
+            THIRD: ValueError("could not satisfy schema after retries"),
+        }
+    )
     rows = compare_providers(TEXTS, TRUTH, {"frontier": frontier, "laptop": laptop})
 
     assert rows["frontier"] == {

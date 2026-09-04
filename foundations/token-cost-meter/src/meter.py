@@ -9,6 +9,7 @@ Token metering utilities for large language models.
 
 See tests in tests/test_meter.py for expected behaviors.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -39,9 +40,7 @@ def cost(model: str, usage: Usage) -> float:
     fresh = usage.input_tokens - cached
     # cached input ~10% price
     dollars = (
-        p_input * fresh
-        + p_output * usage.output_tokens
-        + p_input * cached * 0.1
+        p_input * fresh + p_output * usage.output_tokens + p_input * cached * 0.1
     ) / 1_000_000
     return dollars
 

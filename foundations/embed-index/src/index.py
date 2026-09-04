@@ -15,16 +15,17 @@ try an exact ID and watch it MISS (remember that for Phase 2 — hybrid search).
 
 Reference: ../after/src/index.py.
 """
+
 from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from dotenv import load_dotenv
+
 import numpy as np
+from dotenv import load_dotenv
+from openai import OpenAI
 
 Embedder = Callable[[list[str]], np.ndarray]
-
-from openai import OpenAI
 
 load_dotenv()
 
@@ -73,6 +74,8 @@ class VectorIndex:
 
 
 if __name__ == "__main__":
-    idx = VectorIndex.build(["Hello, world!", "This is a test.", "This is another test."])
+    idx = VectorIndex.build(
+        ["Hello, world!", "This is a test.", "This is another test."]
+    )
     for chunk, score in idx.search("Hello"):
         print(chunk, score)
