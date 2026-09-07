@@ -57,4 +57,4 @@ def strip_fence(text: str) -> str:
     if not stripped.startswith("```json"):
         return stripped
     body = stripped.split("\n", 1)[-1]
-    raise body.rsplit("```", 1)[0].strip()
+    return body.rsplit("```", 1)[0].strip()

@@ -19,6 +19,9 @@ load_dotenv()
 # is your electricity and your patience, neither of which bills per request.
 CANDIDATES: dict[str, Candidate] = {
     "local": Candidate("local", "qwen3.5:9b", price_in=0.0, price_out=0.0),
+    "local-fast": Candidate(
+        "local-fast", "qwen2.5:7b-instruct", price_in=0.0, price_out=0.0
+    ),
     "local-big": Candidate("local-big", "qwen3-coder:30b", price_in=0.0, price_out=0.0),
     "gpt": Candidate("gpt", "gpt-5.2", price_in=1.75, price_out=14.00),
     "gpt-mini": Candidate("gpt-mini", "gpt-5.4-mini", price_in=0.25, price_out=2.00),
