@@ -1,0 +1,6 @@
+{"question": "What is hybrid search?", "ground_truth": "hybrid search fuses keyword and vector retrieval", "slice": "semantic"}
+{"question": "How long do refunds take?", "ground_truth": "refunds are processed within five business days", "slice": "semantic"}
+{"question": "What does a reranker do?", "ground_truth": "a reranker reorders retrieved candidates by relevance", "slice": "semantic"}
+{"question": "When was invoice INV-88231 paid?", "ground_truth": "invoice INV-88231 was paid on 3 July 2026", "slice": "exact"}
+{"question": "What is error code ERR-4021?", "ground_truth": "ERR-4021 means the payment gateway timed out", "slice": "exact"}
+{"question": "What is the capital of Mars?", "ground_truth": "unanswerable", "slice": "unanswerable"}
