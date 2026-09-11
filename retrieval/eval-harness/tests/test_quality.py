@@ -6,29 +6,14 @@ from src.harness import build_dataset, evaluate_nonllm, load_golden
 
 GOLDEN = "evals/golden.jsonl"
 
-# A stand-in pipeline. Swap in your real rag_pipeline(question) -> (answer, contexts).
+# A stand-in pipeline: a "perfect" retriever derived from the golden set, so it
+# tracks the corpus as it grows instead of rotting each time a row is added. Swap
+# in your real rag_pipeline(question) -> (answer, contexts). Unanswerable rows are
+# intentionally absent: the pipeline must abstain on them, not retrieve.
 KB = {
-    "What is hybrid search?": (
-        "hybrid search fuses keyword and vector retrieval",
-        ["hybrid search fuses keyword and vector retrieval for better recall"],
-    ),
-    "How long do refunds take?": (
-        "refunds are processed within five business days",
-        ["refunds are processed within five business days of approval"],
-    ),
-    "What does a reranker do?": (
-        "a reranker reorders retrieved candidates by relevance",
-        ["a reranker reorders retrieved candidates by relevance"],
-    ),
-    "When was invoice INV-88231 paid?": (
-        "invoice INV-88231 was paid on 3 July 2026",
-        ["invoice INV-88231 was settled on 3 July 2026 by wire transfer"],
-    ),
-    "What is error code ERR-4021?": (
-        "ERR-4021 means the payment gateway timed out",
-        ["ERR-4021 means the payment gateway timed out"],
-    ),
-    "What is the capital of Mars?": ("I don't know", []),
+    r["question"]: (r["ground_truth"], [r["ground_truth"]])
+    for r in load_golden(GOLDEN)
+    if r["slice"] != "unanswerable"
 }
 
 
