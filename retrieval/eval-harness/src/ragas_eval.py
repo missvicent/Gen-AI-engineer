@@ -32,61 +32,65 @@ Reference: ../after/src/ragas_eval.py
 
 from __future__ import annotations
 
+import math
+import os
 from collections.abc import Callable
+from importlib.metadata import version
+
+from dotenv import load_dotenv
+from openai import AsyncOpenAI
+from ragas.llms import llm_factory
+from ragas.metrics.collections import ContextRecall, Faithfulness
+
+load_dotenv()
 
 FAITHFULNESS_BAR = 0.85
 CONTEXT_RECALL_BAR = 0.80
 
-DEFAULT_LOCAL_MODEL = "qwen3-coder:30b"
+DEFAULT_LOCAL_MODEL = "qwen3:8b"
 DEFAULT_HOSTED_MODEL = "gpt-5.5"
-OLLAMA_BASE_URL = "http://localhost:11434/v1"
+OLLAMA_BASE_URL = os.getenv("BASE_URL")
 
 
 def local_judge(model: str = DEFAULT_LOCAL_MODEL):
-    raise NotImplementedError  # TODO 1
+    client = AsyncOpenAI(base_url=OLLAMA_BASE_URL, api_key=os.getenv("OLLAMA_API_KEY"))
+    return llm_factory(model, client=client, temperature=0)
 
 
 def hosted_judge(model: str = DEFAULT_HOSTED_MODEL):
-    """A hosted judge (needs OPENAI_API_KEY). Stronger, costs tokens. Same
-    `llm_factory` call as the local one with the base URL left off — which is
-    the point: any Ollama model speaks the OpenAI API."""
-    raise NotImplementedError  # TODO 1b
+    return llm_factory(
+        model,
+        client=AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY")),
+        temperature=0,
+    )
 
 
 def as_score(value: object, metric: str) -> float:
-    """TODO 2: one judge verdict, checked before it is allowed into an average.
-
-    Return `value` as a float in 0..1, and raise `ValueError` naming `metric` when
-    it is not one. Three inputs to reject, and the middle one is the reason this
-    function exists rather than being a `float()` call at the call site:
-
-      * `None` — the judge did not answer. Reading that as 0.0 turns a broken judge
-        into a quality regression, and sends someone to debug the retriever.
-      * `NaN` — a NaN compares False against every threshold, so `nan < 0.85` is
-        False and the gate PASSES. Worse, one NaN row makes the whole mean NaN, so
-        a single unparsed verdict silences the gate for the entire run while the
-        report still prints a number.
-      * outside 0..1 — usually 0..100, because `rapidfuzz` returns percentages and
-        RAGAS returns fractions. A faithfulness of 87.0 clears a 0.85 bar by two
-        orders of magnitude and reads as a triumph.
-
-    `tests/test_gate.py` has all three, and they are worth reading before you
-    write this: they run offline, so you get them green in a second rather than
-    after a nightly."""
-    raise NotImplementedError  # TODO 2
+    if value is None:
+        raise ValueError(f"The Judge returned no score for {metric}")
+    score = float(value)
+    if math.isnan(score):
+        raise ValueError(
+            f"The Judge returned a NaN score for {metric}, which no threshold can catch"
+        )
+    if not 0 <= score <= 1:
+        raise ValueError(f"The Judge returned a score for {metric} outside 0..1: {score}")
+    return score
 
 
 def aggregate(scored: list[dict[str, float]]) -> dict[str, float]:
-    """TODO 3: per-row scores to the two numbers a gate reads.
+    """Per row scores to the two numbers a gate reads."""
 
-    The mean of each metric across `scored`. Average the two independently — one
-    accumulator for both is a real bug that every passing run hides.
-
-    The empty case is a decision, not an edge case: a nightly job that died before
-    its first row has produced no evidence, so return 0.0 for both and let the gate
-    fail. Raising here crashes the reporter, and defaulting to 1.0 turns a crashed
-    eval into a green build."""
-    raise NotImplementedError  # TODO 3
+    """An empty run must not read as a perfect one, and must not crash either.
+    nightly jobs die halfway through, and `0.0` fails the gate, which is the
+    correct outcome for a measurement that did not happen.
+    """
+    if not scored:
+        return {"faithfulness": 0.0, "context_recall": 0.0}
+    return {
+        metric: sum(row[metric] for row in scored) / len(scored)
+        for metric in ["faithfulness", "context_recall"]
+    }
 
 
 def run_ragas(
@@ -94,21 +98,51 @@ def run_ragas(
     pipeline: Callable[[str], tuple[str, list[str]]],
     judge=None,
 ) -> dict:
-    """TODO 4: score every row of `golden`, then return `aggregate`'s result.
-
-    `Faithfulness(llm=judge)` and `ContextRecall(llm=judge)`, one sample at a time
-    through `score(...)`. Faithfulness takes `user_input`, `response` and
-    `retrieved_contexts`; context recall takes `user_input`, `retrieved_contexts`
-    and `reference`. Put every `.value` through `as_score` on its way in."""
-    raise NotImplementedError  # TODO 4
+    judge = judge or local_judge()
+    faithfulness, context_recall = Faithfulness(llm=judge), ContextRecall(llm=judge)
+    scored: list[dict[str, float]] = []
+    for row in golden:
+        answer, contexts = pipeline(row["question"])
+        scored.append(
+            {
+                "faithfulness": as_score(
+                    faithfulness.score(
+                        user_input=row["question"],
+                        response=answer,
+                        retrieved_contexts=contexts,
+                    ),
+                    "faithfulness",
+                ),
+                "context_recall": as_score(
+                    context_recall.score(
+                        user_input=row["question"],
+                        retrieved_contexts=contexts,
+                        reference=row["ground_truth"],
+                    ),
+                    "context_recall",
+                ),
+            }
+        )
+    return aggregate(scored)
 
 
 def describe(model: str = DEFAULT_LOCAL_MODEL) -> dict[str, str]:
-    """A score without its instrument is not a measurement. Return the judge
-    model, its temperature, and `importlib.metadata.version("ragas")` — the
-    three things that make today's 0.91 comparable to last week's 0.88."""
-    raise NotImplementedError  # TODO 5
+    """A score without its instrument is not a measurement. Report this
+    beside every number you publish.
+    """
+    return {
+        "judge_model": model,
+        "judge_temperature": "0.0",
+        "ragas_version": version("ragas"),
+    }
 
 
 def gate(scores: dict) -> tuple[bool, list[str]]:
-    raise NotImplementedError  # TODO 6
+    reasons = []
+    f = scores.get("faithfulness", 0.0)
+    c = scores.get("context_recall", 0.0)
+    if f < FAITHFULNESS_BAR:
+        reasons.append(f"faithfulness {f:.2f} < {FAITHFULNESS_BAR}")
+    if c < CONTEXT_RECALL_BAR:
+        reasons.append(f"context_recall {c:.2f} < {CONTEXT_RECALL_BAR}")
+    return len(reasons) == 0, reasons
