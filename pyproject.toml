@@ -12,7 +12,10 @@ dependencies = [
     "pydantic>=2.13.4",
     "python-dotenv>=1.2.2",
     "tiktoken>=0.13.0",
-    "rapidfuzz>=3.9,<4"
+    "rapidfuzz>=3.9,<4",
+    "qdrant-client>=1.19.0",
+    "rank-bm25>=0.2.2",
+    "fastembed>=0.8.0",
 ]
 
 [dependency-groups]
@@ -25,7 +28,7 @@ integration = [
    "langchain-community>=0.3.27,<0.4",
 ]
 [tool.pytest.ini_options]
-pythonpath = ["workshops/model-bench"]
+pythonpath = ["workshops/model-bench", "retrieval/hybrid-rerank"]
 
 [tool.ruff]
 line-length = 88
