@@ -1,6 +1,6 @@
 """
 Nobody implements BM25 or cosine similarity at work — they pick the right package.
-Your job is the wiring.
+Your job is the wiring.]
 
     keyword (sparse)  ->  rank_bm25.BM25Okapi   /  fastembed SparseTextEmbedding
     semantic (dense)  ->  fastembed TextEmbedding("BAAI/bge-small-en-v1.5")
