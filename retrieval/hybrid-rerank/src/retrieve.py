@@ -95,6 +95,16 @@ class HybridStore:
         )
         return [Hit(text=p.payload["text"], score=p.score) for p in res.points]
 
+    def dense_only(self, dense_q: list[float], k: int = 5) -> list[Hit]:
+        res = self.client.query_points(
+            collection_name=self.name,
+            query=dense_q,
+            using=DENSE,
+            limit=k,
+            with_payload=True,
+        )
+        return [Hit(text=p.payload["text"], score=p.score) for p in res.points]
+
 
 def bm25_search(corpus: list[str], query: str, k: int = 5) -> list[str]:
     bm25 = BM25Okapi([d.lower().split() for d in corpus])
