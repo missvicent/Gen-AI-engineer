@@ -1,10 +1,11 @@
 """Tier 1 gate: deterministic, offline, runs on every PR."""
 
 from collections import Counter
+from pathlib import Path
 
-from src.harness import build_dataset, evaluate_nonllm, load_golden
+from eval_harness.harness import build_dataset, evaluate_nonllm, load_golden
 
-GOLDEN = "evals/golden.jsonl"
+GOLDEN = Path(__file__).resolve().parent.parent / "evals" / "golden.jsonl"
 
 # A stand-in pipeline: a "perfect" retriever derived from the golden set, so it
 # tracks the corpus as it grows instead of rotting each time a row is added. Swap

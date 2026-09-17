@@ -1,4 +1,4 @@
-from src.chunk import fixed_size, heading_aware, worst_chunk
+from chunking.chunk import fixed_size, heading_aware, worst_chunk
 
 DOC = "# A\n" + ("alpha " * 600) + "\n# B\n" + ("beta " * 100)
 

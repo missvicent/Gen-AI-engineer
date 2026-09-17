@@ -26,8 +26,7 @@ What each test below is protecting:
 import math
 
 import pytest
-
-from src.ragas_eval import (
+from eval_harness.ragas_eval import (
     CONTEXT_RECALL_BAR,
     FAITHFULNESS_BAR,
     aggregate,

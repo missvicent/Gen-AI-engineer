@@ -4,9 +4,9 @@ We hand-build tiny vectors so the test is fast and offline, but every call below
 goes through the SAME qdrant-client API you'd use in production, including
 server-side RRF fusion. The real-model path is covered in test_integration.py.
 """
-from qdrant_client import models
 
-from src.retrieve import HybridStore, bm25_search
+from hybrid_rerank.retrieve import HybridStore, bm25_search
+from qdrant_client import models
 
 DOCS = [
     "hybrid search fuses keyword and vector retrieval for better recall",
@@ -43,7 +43,7 @@ def test_hybrid_finds_the_exact_id_via_the_sparse_arm():
     """Same store, same dense query, but the sparse arm carries the identifier."""
     store = _store()
     hits = store.hybrid_search(
-        dense_q=[1.0, 0.0],                                     # semantic: retrieval
+        dense_q=[1.0, 0.0],  # semantic: retrieval
         sparse_q=models.SparseVector(indices=[7], values=[1.0]),  # keyword: INV-88231
         k=2,
     )
@@ -53,7 +53,9 @@ def test_hybrid_finds_the_exact_id_via_the_sparse_arm():
 def test_hybrid_is_one_call_with_server_side_fusion():
     """No fusion code of our own — Qdrant returns an already-fused ranking."""
     store = _store()
-    hits = store.hybrid_search([0.0, 1.0], models.SparseVector(indices=[7], values=[1.0]), k=3)
+    hits = store.hybrid_search(
+        [0.0, 1.0], models.SparseVector(indices=[7], values=[1.0]), k=3
+    )
     assert len(hits) == 3
     assert hits == sorted(hits, key=lambda h: h.score, reverse=True)
 

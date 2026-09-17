@@ -28,7 +28,20 @@ integration = [
    "langchain-community>=0.3.27,<0.4",
 ]
 [tool.pytest.ini_options]
-pythonpath = ["workshops/model-bench", "retrieval/hybrid-rerank"]
+# Each entry is a lesson dir holding ONE uniquely-named package (never `src`), so
+# they can share sys.path without shadowing each other. See conventions.md.
+pythonpath = [
+    "workshops/model-bench",
+    "retrieval/hybrid-rerank",
+    "retrieval/break-and-fix",
+    "retrieval/eval-harness",
+    "foundations/chunking",
+    "foundations/embed-index",
+    "foundations/structured-extraction",
+    "foundations/token-cost-meter",
+]
+# importlib mode lets same-named test files (test_integration.py, ...) coexist across lessons.
+addopts = "--import-mode=importlib"
 
 [tool.ruff]
 line-length = 88

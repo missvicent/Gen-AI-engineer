@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 from pydantic import ValidationError
-from src.extract import (
+from structured_extraction.extract import (
     Invoice,
     compare_providers,
     extract_all,

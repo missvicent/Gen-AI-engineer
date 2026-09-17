@@ -3,11 +3,13 @@
 make test-integration
 """
 
+from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.integration
 
-GOLDEN = "evals/golden.jsonl"
+GOLDEN = Path(__file__).resolve().parent.parent / "evals" / "golden.jsonl"
 
 
 def _pipeline(q: str):
@@ -35,8 +37,13 @@ def test_real_ragas_scores_and_gates():
     `test_gate.py`, offline and by the number — including the boundary cases and
     the NaN a live run will not produce on demand.
     """
-    from src.harness import load_golden
-    from src.ragas_eval import CONTEXT_RECALL_BAR, FAITHFULNESS_BAR, gate, run_ragas
+    from eval_harness.harness import load_golden
+    from eval_harness.ragas_eval import (
+        CONTEXT_RECALL_BAR,
+        FAITHFULNESS_BAR,
+        gate,
+        run_ragas,
+    )
 
     scores = run_ragas(load_golden(GOLDEN)[:3], _pipeline)
     assert set(scores) == {"faithfulness", "context_recall"}
@@ -72,7 +79,7 @@ def test_the_installed_ragas_is_the_one_this_lesson_was_written_against():
 
 def test_the_scores_travel_with_the_instrument_that_produced_them():
     """A number without its judge is not comparable to next week's number."""
-    from src.ragas_eval import describe
+    from eval_harness.ragas_eval import describe
 
     stamp = describe()
     assert stamp["judge_temperature"] == "0.0"

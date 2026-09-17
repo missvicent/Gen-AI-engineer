@@ -10,7 +10,7 @@ The live semantic-search demo is in `__main__` and needs Ollama.
 from __future__ import annotations
 
 import numpy as np
-from src.index import VectorIndex, normalize
+from embed_index.index import VectorIndex, normalize
 
 # A two-dimensional toy space: axis 0 is "payments", axis 1 is "weather".
 VECTORS: dict[str, list[float]] = {

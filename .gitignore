@@ -11,3 +11,4 @@ venv/
 __pycache__/
 CLAUDE.md
 .claude/
+conventions.md

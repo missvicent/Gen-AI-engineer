@@ -1,4 +1,4 @@
-from src.meter import Usage, cost, count_openai
+from token_cost_meter.meter import Usage, cost, count_openai
 
 
 def test_tiktoken_counts_something():
