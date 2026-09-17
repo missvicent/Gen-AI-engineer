@@ -16,6 +16,7 @@ dependencies = [
     "qdrant-client>=1.19.0",
     "rank-bm25>=0.2.2",
     "fastembed>=0.8.0",
+    "langchain-text-splitters>=1.1.2",
 ]
 
 [dependency-groups]
@@ -34,6 +35,7 @@ pythonpath = [
     "workshops/model-bench",
     "retrieval/hybrid-rerank",
     "retrieval/break-and-fix",
+    "retrieval/contextual-chunks",
     "retrieval/eval-harness",
     "foundations/chunking",
     "foundations/embed-index",
@@ -42,6 +44,9 @@ pythonpath = [
 ]
 # importlib mode lets same-named test files (test_integration.py, ...) coexist across lessons.
 addopts = "--import-mode=importlib"
+markers = [
+    "integration: needs live services (Ollama, network); skip with -m 'not integration'",
+]
 
 [tool.ruff]
 line-length = 88
