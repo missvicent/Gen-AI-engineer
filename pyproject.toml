@@ -17,6 +17,11 @@ dependencies = [
     "rank-bm25>=0.2.2",
     "fastembed>=0.8.0",
     "langchain-text-splitters>=1.1.2",
+    "pyjwt>=2.14.0",
+    "fastapi>=0.141.1",
+    "opentelemetry-api>=1.44.0",
+    "opentelemetry-sdk>=1.44.0",
+    "uvicorn>=0.53.0",
 ]
 
 [dependency-groups]
@@ -33,6 +38,7 @@ integration = [
 # they can share sys.path without shadowing each other. See conventions.md.
 pythonpath = [
     "workshops/model-bench",
+    "workshops/assistant",
     "retrieval/hybrid-rerank",
     "retrieval/break-and-fix",
     "retrieval/contextual-chunks",
