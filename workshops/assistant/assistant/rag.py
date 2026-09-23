@@ -214,18 +214,19 @@ class RagStore:
         return [i for i, s in sorted(out, key=lambda x: -x[1]) if s > 0]
 
     def _rank(self, query: str, k: int) -> list[tuple[int, float]]:
-        """TODO 3: fuse the two rankings with RRF and return the top k as
-        `(index, fused_score)` pairs, highest first.
-
+        """
         Reciprocal rank fusion scores a document by `1 / (60 + rank)` in each
-        list it appears in, summed. It needs no score calibration between the
-        two arms, which is the reason to prefer it over adding raw BM25 and
-        cosine numbers that live on different scales.
-
-        Return the score along with the index, because the caller publishes it in
-        the citation and a number whose units nobody recorded is worse than no
-        number — see `Chunk.scored_by`."""
-        raise NotImplementedError
+        list it appears in, summed. 
+        """
+        q = query.lower().split()
+        ranking = [self._bm25(q), self._dense(q)]
+        score: dict[int, float] = {}
+        for r in ranking:
+            for rank, doc_id in enumerate(r):
+                score[doc_id] = score.get(doc_id, 0.0) + 1.0 / (60 + rank)
+            ordered = sorted(score, key=lambda i: score[i], reverse=True)[:k]
+            return [(i, score[i]) for i in ordered]
+        
 
     def search(self, query: str, k: int = 3) -> list[str]:
         """The text of the top k. Kept as strings because this is the Workshop-2
