@@ -216,7 +216,7 @@ class RagStore:
     def _rank(self, query: str, k: int) -> list[tuple[int, float]]:
         """
         Reciprocal rank fusion scores a document by `1 / (60 + rank)` in each
-        list it appears in, summed. 
+        list it appears in, summed.
         """
         q = query.lower().split()
         ranking = [self._bm25(q), self._dense(q)]
@@ -224,9 +224,8 @@ class RagStore:
         for r in ranking:
             for rank, doc_id in enumerate(r):
                 score[doc_id] = score.get(doc_id, 0.0) + 1.0 / (60 + rank)
-            ordered = sorted(score, key=lambda i: score[i], reverse=True)[:k]
-            return [(i, score[i]) for i in ordered]
-        
+        ordered = sorted(score, key=lambda i: score[i], reverse=True)[:k]
+        return [(i, score[i]) for i in ordered]
 
     def search(self, query: str, k: int = 3) -> list[str]:
         """The text of the top k. Kept as strings because this is the Workshop-2
