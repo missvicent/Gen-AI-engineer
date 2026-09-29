@@ -23,6 +23,7 @@ a retrieval layer is not finished when search works: a corpus you cannot delete
 from will eventually hold something you are not allowed to keep, and a citation
 that cannot be resolved back to its text is decoration.
 """
+
 from __future__ import annotations
 
 import json
@@ -44,13 +45,15 @@ from assistant.composers import (
 )
 from assistant.guardrails import Screen
 from assistant.idempotency import IdempotencyStore
+from assistant.observe import stage
 from assistant.outbox import Outbox
 from assistant.output_gate import REDACTION, gated_chunks
+from assistant.provenance import corpus_version
+from assistant.rag import sources
 from assistant.settings import Settings
 from assistant.tools import Tool
 from assistant.usage import Usage
 from assistant.usage import measure as measure_usage
-from assistant.observe import stage
 
 #: which memory kinds are worth putting in front of an answer. Working memory is
 #: this turn's scratch space and procedural memory belongs to the planner, not
@@ -130,7 +133,9 @@ class Assistant:
             # about "refunds". A stack running on it looks identical from every
             # other probe, which is exactly why this one exists.
             "embed": (
-                s.embed_model if (s.embed_model and s.qdrant_url) else "hash (not semantic)"
+                s.embed_model
+                if (s.embed_model and s.qdrant_url)
+                else "hash (not semantic)"
             ),
             # dense-only or dense+sparse fused. The second is what phase 2
             # teaches; the deployed stack shipped the first for a while.
@@ -142,9 +147,7 @@ class Assistant:
             # "inherent" for BM25, which abstains by scoring zero and needs no
             # number; a float for a vector store; "none" for a vector store that
             # was never given one, which is a misconfiguration and reads like one.
-            "threshold": (
-                (s.min_score or "none") if s.qdrant_url else "inherent"
-            ),
+            "threshold": ((s.min_score or "none") if s.qdrant_url else "inherent"),
             # The reranker that is RUNNING, not the one that was asked for —
             # same rule as the embed row above, and it fails the same two ways.
             # A model named without a vector store is never built (reranking a
@@ -171,7 +174,9 @@ class Assistant:
             "auth": _auth_tier(s),
             # an operator needs to see from outside whether the screen in front
             # of them is regex-only or regex plus a model
-            "guard": s.guard_model if (s.guard_model and s.ollama_host) else "regex-only",
+            "guard": s.guard_model
+            if (s.guard_model and s.ollama_host)
+            else "regex-only",
             "connectors": (
                 "real" if (s.telegram_bot_token or s.news_feed_url) else "stubs"
             ),
@@ -329,7 +334,47 @@ class Assistant:
         to be applied to what was written yesterday. Two gates, one screen.
         """
         with stage(
-            self.rec.tracer, observe.INGEST_SPAN, **{observe.SUBJECT: subject, observe.TENANT: subject}) as span:
+            self.rec.tracer,
+            observe.INGEST_SPAN,
+            **{observe.SUBJECT: subject, observe.TENANT: subject},
+        ) as span:
+            kept, rejected = [], 0
+            for doc in docs:
+                text = doc["text"] if isinstance(doc, dict) else doc
+                ok, cleaned = self.screen(text)
+                if ok:
+                    kept.append(
+                        {"text": cleaned, "source": doc["source"]}
+                        if isinstance(doc, dict)
+                        else cleaned
+                    )
+                else:
+                    rejected += 1
+                    self.audit_log.record(
+                        "ingest.rejected",
+                        subject,
+                        cleaned,
+                        args={"source": doc.get("source")}
+                        if isinstance(doc, dict)
+                        else None,
+                        result=audit_log.REJECTED,
+                    )
+            added = self.rag.add(kept, tenant=subject)
+            if added:
+                self.audit_log.record(
+                    "corpus.ingested",
+                    subject,
+                    f"{added} chunks from {', '.join(sources(kept)) or 'unnamed documents'}",
+                    args={"source": sources(kept)},
+                    result=audit_log.OK,
+                )
+            span.set_attribute(observe.INGEST_ACCEPTED, added)
+            span.set_attribute(observe.INGEST_REJECTED, rejected)
+            span.set_attribute(
+                observe.CORPUS_VERSION,
+                corpus_version(d["text"] if isinstance(d, dict) else d for d in docs),
+            )
+            return {"ingested": added, "rejected": rejected}
 
     def forget(self, source: str, subject: str = auth.ANONYMOUS) -> dict:
         """Delete every chunk of one source from this caller's corpus.
@@ -341,13 +386,17 @@ class Assistant:
         need evidence. (The tenant-scoped delete itself is TODO 5 in
         adapters.py; this is only the seam that records it.)"""
         with observe.stage(
-            self.rec.tracer, observe.INGEST_SPAN,
+            self.rec.tracer,
+            observe.INGEST_SPAN,
             **{observe.SUBJECT: subject, observe.TENANT: subject},
         ) as span:
             removed = self.rag.delete(source, tenant=subject)
             self.audit_log.record(
-                "corpus.deleted", subject, f"{source} ({removed} chunks)",
-                args={"source": source}, result=audit_log.DELETED,
+                "corpus.deleted",
+                subject,
+                f"{source} ({removed} chunks)",
+                args={"source": source},
+                result=audit_log.DELETED,
             )
             span.set_attribute(observe.INGEST_DELETED, removed)
             return {"deleted": removed, "source": source}
@@ -434,10 +483,16 @@ class Assistant:
             gathered = self._gather(question, subject)
             request_id = observe.request_id()
             if "blocked" in gathered:
-                return {"answer": "I can't help with that request.",
-                        "blocked": gathered["blocked"], "request_id": request_id,
-                        "contexts": [], "citations": [], "memories": [],
-                        "grounding": "none", "audit": []}
+                return {
+                    "answer": "I can't help with that request.",
+                    "blocked": gathered["blocked"],
+                    "request_id": request_id,
+                    "contexts": [],
+                    "citations": [],
+                    "memories": [],
+                    "grounding": "none",
+                    "audit": [],
+                }
             contexts = gathered["contexts"]
             citations = citations_for(gathered["chunks"])
             memories = gathered["memories"]
@@ -447,11 +502,17 @@ class Assistant:
                     "answer": f"'{pending.tool}' needs approval before it can run.",
                     # args and their fingerprint travel with the pause: approving is
                     # approving THIS call, so the client has to echo it back
-                    "pending": {"tool": pending.tool, "args": pending.args,
-                                "args_hash": args_fingerprint(pending.args)},
-                    "contexts": contexts, "citations": citations,
-                    "request_id": request_id, "grounding": "none",
-                    "memories": memories, "audit": gathered["audit"],
+                    "pending": {
+                        "tool": pending.tool,
+                        "args": pending.args,
+                        "args_hash": args_fingerprint(pending.args),
+                    },
+                    "contexts": contexts,
+                    "citations": citations,
+                    "request_id": request_id,
+                    "grounding": "none",
+                    "memories": memories,
+                    "audit": gathered["audit"],
                 }
             grounding = composers.grounding_of(
                 contexts, gathered["state"], memories, gathered["goal"]
@@ -473,14 +534,19 @@ class Assistant:
                 # this text, and a check bound to a duplicated literal stops being
                 # true the first time one of the two is edited.
                 answer = REDACTION
-            return {"answer": answer, "contexts": contexts, "citations": citations,
-                    "request_id": request_id,
-                    # Which class of evidence this answer stands on. A caller can
-                    # verify a "documents" answer against its citations; a
-                    # "memory" one has none by design, and saying so is the
-                    # difference between personalisation and a silent downgrade.
-                    "grounding": grounding,
-                    "memories": memories, "audit": gathered["audit"]}
+            return {
+                "answer": answer,
+                "contexts": contexts,
+                "citations": citations,
+                "request_id": request_id,
+                # Which class of evidence this answer stands on. A caller can
+                # verify a "documents" answer against its citations; a
+                # "memory" one has none by design, and saying so is the
+                # difference between personalisation and a silent downgrade.
+                "grounding": grounding,
+                "memories": memories,
+                "audit": gathered["audit"],
+            }
 
     def ask_stream(self, question: str, subject: str = auth.ANONYMOUS) -> Iterator[str]:
         """The same pipeline as ask(), as SSE frames: `chunk` events carrying text
@@ -507,26 +573,42 @@ class Assistant:
             with observe.within(root):
                 gathered = self._gather(question, subject)
             if "blocked" in gathered:
-                yield sse("done", {
-                    "answer": "I can't help with that request.",
-                    "blocked": gathered["blocked"], "request_id": request_id,
-                    "citations": [], "grounding": "none", "audit": [],
-                })
+                yield sse(
+                    "done",
+                    {
+                        "answer": "I can't help with that request.",
+                        "blocked": gathered["blocked"],
+                        "request_id": request_id,
+                        "citations": [],
+                        "grounding": "none",
+                        "audit": [],
+                    },
+                )
                 return
             citations = citations_for(gathered["chunks"])
             if "pending" in gathered:
                 pending = gathered["pending"]
-                yield sse("done", {
-                    "answer": f"'{pending.tool}' needs approval before it can run.",
-                    "pending": {"tool": pending.tool, "args": pending.args,
-                                "args_hash": args_fingerprint(pending.args)},
-                    "citations": citations, "request_id": request_id,
-                    "grounding": "none", "audit": gathered["audit"],
-                })
+                yield sse(
+                    "done",
+                    {
+                        "answer": f"'{pending.tool}' needs approval before it can run.",
+                        "pending": {
+                            "tool": pending.tool,
+                            "args": pending.args,
+                            "args_hash": args_fingerprint(pending.args),
+                        },
+                        "citations": citations,
+                        "request_id": request_id,
+                        "grounding": "none",
+                        "audit": gathered["audit"],
+                    },
+                )
                 return
             grounding = composers.grounding_of(
-                gathered["contexts"], gathered["state"],
-                gathered["memories"], gathered["goal"],
+                gathered["contexts"],
+                gathered["state"],
+                gathered["memories"],
+                gathered["goal"],
             )
             # Same rule as the batch path, and it has to be the same rule: a
             # client that gets citations when it streams and none when it does
@@ -534,8 +616,12 @@ class Assistant:
             if grounding == "memory":
                 citations = []
             stream = self.stream_compose or word_stream(self.compose)
-            produced = stream(gathered["goal"], gathered["contexts"],
-                              gathered["state"], gathered["memories"])
+            produced = stream(
+                gathered["goal"],
+                gathered["contexts"],
+                gathered["state"],
+                gathered["memories"],
+            )
             # Nothing above materialises the stream: `gated_chunks` pulls one
             # chunk at a time and this loop hands each frame straight to the
             # client. Buffering here to make the metering tidier would trade the
@@ -587,43 +673,71 @@ class Assistant:
                 elif kind == "blocked":
                     blocked = True
                     metered = "".join(text)
-                    yield sse("done", {
-                        "answer": chunk, "redacted": True, "request_id": request_id,
-                        "citations": citations, "audit": gathered["audit"],
-                    })
+                    yield sse(
+                        "done",
+                        {
+                            "answer": chunk,
+                            "redacted": True,
+                            "request_id": request_id,
+                            "citations": citations,
+                            "audit": gathered["audit"],
+                        },
+                    )
                 elif kind == "truncated":
                     # Still a `done` frame — the stream really is over — but one
                     # that says so. A client rendering this as a finished answer
                     # is now doing it against an explicit flag, not by omission.
                     truncated = True
                     metered = chunk
-                    yield sse("done", {
-                        "answer": chunk, "truncated": True,
-                        "degraded": dict(self.degraded), "citations": citations,
-                        "request_id": request_id, "grounding": grounding,
-                        "audit": gathered["audit"],
-                    })
+                    yield sse(
+                        "done",
+                        {
+                            "answer": chunk,
+                            "truncated": True,
+                            "degraded": dict(self.degraded),
+                            "citations": citations,
+                            "request_id": request_id,
+                            "grounding": grounding,
+                            "audit": gathered["audit"],
+                        },
+                    )
                 else:
                     metered = chunk
-                    yield sse("done", {"answer": chunk, "citations": citations,
-                                       "request_id": request_id,
-                                       "grounding": grounding,
-                                       "audit": gathered["audit"]})
+                    yield sse(
+                        "done",
+                        {
+                            "answer": chunk,
+                            "citations": citations,
+                            "request_id": request_id,
+                            "grounding": grounding,
+                            "audit": gathered["audit"],
+                        },
+                    )
             # Closed after the last frame, backdated to when generation started,
             # so this span measures the generation and not the accounting.
             used = measure_usage(
-                composers.grounded_prompt(gathered["goal"], gathered["contexts"],
-                                          gathered["state"], gathered["memories"]),
+                composers.grounded_prompt(
+                    gathered["goal"],
+                    gathered["contexts"],
+                    gathered["state"],
+                    gathered["memories"],
+                ),
                 # `is None` rather than `or`: an empty answer is a real answer and
                 # has to meter as zero output tokens, not fall through to the
                 # released chunks.
                 "".join(text) if metered is None else metered,
             )
             tier = self.settings.price_tier
-            observe.mark(tracer, observe.COMPOSE_SPAN, root, start_time=began,
-                         **self._usage_attributes(used, tier))
-            observe.mark(tracer, observe.OUTPUT_SPAN, root,
-                         **{observe.SCREEN_BLOCKED: blocked})
+            observe.mark(
+                tracer,
+                observe.COMPOSE_SPAN,
+                root,
+                start_time=began,
+                **self._usage_attributes(used, tier),
+            )
+            observe.mark(
+                tracer, observe.OUTPUT_SPAN, root, **{observe.SCREEN_BLOCKED: blocked}
+            )
             if truncated:
                 root.set_attribute(observe.TRUNCATED, True)
             root.set_attribute(observe.TOKENS_TOTAL, used.total)
