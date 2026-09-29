@@ -39,6 +39,7 @@ output, ingested document.
 
 Reference: ../../after/src/assistant/guard.py.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

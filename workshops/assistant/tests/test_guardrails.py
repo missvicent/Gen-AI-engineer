@@ -1,5 +1,4 @@
 import pytest
-
 from assistant.agent import run
 from assistant.guardrails import output_ok, screen, spotlight, squash
 
@@ -49,7 +48,9 @@ def test_screen_catches_split_and_substituted_tokens(payload):
 
 
 def test_squash_collapses_the_disguises_onto_one_string():
-    assert squash("Ign\u200bore") == squash("1gn0re") == squash("I-G-N-O-R-E") == "ignore"
+    assert (
+        squash("Ign\u200bore") == squash("1gn0re") == squash("I-G-N-O-R-E") == "ignore"
+    )
 
 
 @pytest.mark.parametrize(

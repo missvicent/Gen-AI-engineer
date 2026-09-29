@@ -14,7 +14,6 @@ import os
 from collections.abc import Callable
 
 from dotenv import load_dotenv
-
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
 
@@ -31,10 +30,10 @@ PROMPT = (
 
 def split(text: str, chunk_size: int = 512, chunk_overlap: int = 75) -> list[str]:
     return RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size, 
+        chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
         separators=["\n\n", "\n", ". ", " ", ""],
-        ).split_text(text)
+    ).split_text(text)
 
 
 def local_summarizer(model: str = "qwen2.5:7b-instruct") -> Summarizer:
@@ -47,8 +46,9 @@ def local_summarizer(model: str = "qwen2.5:7b-instruct") -> Summarizer:
             messages=[{"role": "user", "content": prompt}],
         )
         return (response.choices[0].message.content or "").strip()
+
     return summarize
-    
+
 
 def contextualize(doc: str, chunk: str, summarize: Summarizer) -> str:
     """Return the chunk with the one-line blurb prepended."""

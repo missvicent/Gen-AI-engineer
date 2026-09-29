@@ -50,6 +50,7 @@ from assistant.settings import Settings
 from assistant.tools import Tool
 from assistant.usage import Usage
 from assistant.usage import measure as measure_usage
+from assistant.observe import stage
 
 #: which memory kinds are worth putting in front of an answer. Working memory is
 #: this turn's scratch space and procedural memory belongs to the planner, not
@@ -213,17 +214,14 @@ class Assistant:
         return bool(answer), "model answered inside the composer budget"
 
     def recall(self, question: str, subject: str) -> list[str]:
-        """TODO 2: what this assistant already knows about THIS caller.
-
-        Pull up to two hits per kind in RECALLED_KINDS from
-        `self.memory.recall(kind, question, subject=subject, k=2)`, rank them by
-        score across kinds, and return the top three texts.
-
-        The `subject=` is the whole point. The version this replaced asked one
-        shared store, which answered with whatever matched — including another
-        person's preferences. See tenancy.py.
+        """Recall what this assistant already knows about THIS caller.
+        Most relevant memories for the given question and subject.
         """
-        raise NotImplementedError
+        hits = []
+        for kind in RECALLED_KINDS:
+            hits.extend(self.memory.recall(kind, question, subject=subject, k=2))
+        hits.sort(key=lambda x: -x.score)
+        return [hit.text for hit in hits[:3]]
 
     def _root_attributes(self, subject: str, request_id: str) -> dict[str, Any]:
         """TODO 5: what the whole request is, as attributes for its root span.
@@ -330,7 +328,8 @@ class Assistant:
         that never touch this method, and a detector that improves tomorrow has
         to be applied to what was written yesterday. Two gates, one screen.
         """
-        raise NotImplementedError
+        with stage(
+            self.rec.tracer, observe.INGEST_SPAN, **{observe.SUBJECT: subject, observe.TENANT: subject}) as span:
 
     def forget(self, source: str, subject: str = auth.ANONYMOUS) -> dict:
         """Delete every chunk of one source from this caller's corpus.

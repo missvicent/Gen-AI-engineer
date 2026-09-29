@@ -44,6 +44,7 @@ namespacing, approval grants and the audit log all hang off.
 
 Reference: ../../after/src/assistant/auth.py.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

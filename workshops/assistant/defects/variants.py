@@ -14,6 +14,7 @@ to ask.
 
 Run the lab with `make defect-lab`.
 """
+
 from __future__ import annotations
 
 import threading
@@ -48,7 +49,9 @@ class CountingApprovalStore:
     nothing about that.
     """
 
-    def __init__(self, path: str = ":memory:", ttl_seconds: float = DEFAULT_TTL_SECONDS) -> None:
+    def __init__(
+        self, path: str = ":memory:", ttl_seconds: float = DEFAULT_TTL_SECONDS
+    ) -> None:
         self._counts: dict[str, int] = {}
         self._lock = threading.Lock()
         self._ttl = ttl_seconds
@@ -57,7 +60,9 @@ class CountingApprovalStore:
     def ttl_seconds(self) -> float:
         return self._ttl
 
-    def mint(self, subject: str, tool: str, args: dict[str, Any] | None = None) -> Grant:
+    def mint(
+        self, subject: str, tool: str, args: dict[str, Any] | None = None
+    ) -> Grant:
         with self._lock:
             self._counts[tool] = self._counts.get(tool, 0) + 1
         return Grant(
@@ -68,7 +73,9 @@ class CountingApprovalStore:
             expires_at=time.time() + self._ttl,
         )
 
-    def consume(self, subject: str, tool: str, args: dict[str, Any] | None = None) -> str | None:
+    def consume(
+        self, subject: str, tool: str, args: dict[str, Any] | None = None
+    ) -> str | None:
         # Read...
         with self._lock:
             remaining = self._counts.get(tool, 0)
@@ -92,7 +99,9 @@ class CountingApprovalStore:
     def outstanding(self, subject: str | None = None) -> list[Grant]:
         with self._lock:
             return [
-                Grant(str(uuid.uuid4()), subject or "?", tool, "", time.time() + self._ttl)
+                Grant(
+                    str(uuid.uuid4()), subject or "?", tool, "", time.time() + self._ttl
+                )
                 for tool, count in self._counts.items()
                 for _ in range(count)
             ]

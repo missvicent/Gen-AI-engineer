@@ -13,6 +13,7 @@ different systems wearing the same name.
 
 Reference: ../../after/src/assistant/provenance.py.
 """
+
 from __future__ import annotations
 
 import hashlib

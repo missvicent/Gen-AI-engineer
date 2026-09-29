@@ -29,6 +29,7 @@ Kinds recorded by the service:
 
 Reference: ../../after/src/assistant/audit_log.py.
 """
+
 from __future__ import annotations
 
 import sqlite3

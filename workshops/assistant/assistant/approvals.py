@@ -20,6 +20,7 @@ consume has to be atomic or the fourth hole is still open.
 The store shares the ASSISTANT_DB file with memory, audit and idempotency, so an
 outstanding approval survives a restart with everything else.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -115,8 +116,13 @@ class ApprovalStore:
                 "INSERT INTO approvals"
                 " (approval_id, subject, tool, args_hash, expires_at)"
                 " VALUES (?, ?, ?, ?, ?)",
-                (grant.approval_id, grant.subject, grant.tool, grant.args_hash,
-                 grant.expires_at),
+                (
+                    grant.approval_id,
+                    grant.subject,
+                    grant.tool,
+                    grant.args_hash,
+                    grant.expires_at,
+                ),
             )
             self._conn.commit()
         return grant
@@ -167,9 +173,7 @@ class ApprovalStore:
             query += " AND subject = ?"
             params += (subject,)
         with self._lock:
-            rows = self._conn.execute(
-                query + " ORDER BY expires_at", params
-            ).fetchall()
+            rows = self._conn.execute(query + " ORDER BY expires_at", params).fetchall()
         return [Grant(*row) for row in rows]
 
     def purge_expired(self) -> int:

@@ -15,13 +15,13 @@ The discipline being drilled:
 Run it against the live stack and the same readers work on the OTLP copy of these
 spans in a collector — the drill is the runbook's "diagnose" step, rehearsed.
 """
+
 from __future__ import annotations
 
 import time
 from typing import Any
 
 import pytest
-
 from assistant.agent import Step, run
 from assistant.observe import (
     duration_ms,
@@ -48,7 +48,9 @@ def degraded_registry() -> dict[str, Tool]:
     return {
         "read_emails": Tool("read_emails", lambda **_: ["one mail"], False, "read"),
         "read_news": Tool("read_news", slow_news, False, "read"),
-        "send_telegram": Tool("send_telegram", lambda **_: {"sent": True}, True, "gated"),
+        "send_telegram": Tool(
+            "send_telegram", lambda **_: {"sent": True}, True, "gated"
+        ),
     }
 
 
@@ -56,7 +58,11 @@ def script(*steps: Step):
     remaining = list(steps)
 
     def decide(goal: str, state: list[Any]) -> Step:
-        return remaining.pop(0) if remaining else Step("", {}, is_final=True, answer="done")
+        return (
+            remaining.pop(0)
+            if remaining
+            else Step("", {}, is_final=True, answer="done")
+        )
 
     return decide
 
@@ -119,6 +125,8 @@ def test_slow_and_failing_are_distinguished_on_the_same_trace(rec):
     tools["read_news"].fn()
 
     failures = failed_spans(rec.spans())
-    assert [str((s.attributes or {}).get("tool.name")) for s in failures] == ["read_emails"]
+    assert [str((s.attributes or {}).get("tool.name")) for s in failures] == [
+        "read_emails"
+    ]
     # The slow tool is NOT in the failure list — it needs a capacity fix, not a retry.
     assert slowest_tool(rec.spans()) == "read_news"

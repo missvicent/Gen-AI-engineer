@@ -1,5 +1,4 @@
-from break_and_fix.rag import RAG
-from break_and_fix.rag import embedder_a
+from break_and_fix.rag import RAG, embedder_a
 
 DOCS = [
     "invoice INV-88231 was paid on July third by wire transfer",

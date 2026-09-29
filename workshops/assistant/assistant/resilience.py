@@ -25,6 +25,7 @@ So a failure has to be CLASSIFIED before it is retried, and a call that is not
 idempotent has to be able to say so. Reference:
 ../../after/src/assistant/resilience.py.
 """
+
 from __future__ import annotations
 
 import random
@@ -211,7 +212,9 @@ class TokenBucket:
     def take(self, n: float = 1.0) -> bool:
         with self._lock:
             now = self.clock()
-            self._tokens = min(self.burst, self._tokens + (now - self._last) * self.rate)
+            self._tokens = min(
+                self.burst, self._tokens + (now - self._last) * self.rate
+            )
             self._last = now
             if self._tokens >= n:
                 self._tokens -= n

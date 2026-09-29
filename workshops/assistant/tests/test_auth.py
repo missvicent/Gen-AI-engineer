@@ -17,11 +17,10 @@ import time
 
 import jwt
 import pytest
-from fastapi.testclient import TestClient
-
 from assistant import auth
 from assistant.api import create_app
 from assistant.settings import Settings
+from fastapi.testclient import TestClient
 
 SECRET = "test-secret-with-at-least-32-bytes!!"  # HS256 wants >=32 bytes of key
 AUDIENCE = "assistant"
@@ -33,8 +32,14 @@ def secured_client(**overrides) -> TestClient:
     return TestClient(create_app(settings), raise_server_exceptions=False)
 
 
-def claims(scope: str, *, audience: str = AUDIENCE, expires_in: int | None = 300,
-           sub: str | None = "alice", issuer: str | None = None) -> dict:
+def claims(
+    scope: str,
+    *,
+    audience: str = AUDIENCE,
+    expires_in: int | None = 300,
+    sub: str | None = "alice",
+    issuer: str | None = None,
+) -> dict:
     body: dict = {"aud": audience, "scope": scope}
     if sub is not None:
         body["sub"] = sub
@@ -62,7 +67,10 @@ def test_without_a_key_source_the_zero_key_demo_path_stays_open():
 def test_health_reports_which_gate_is_live():
     """An operator outside the process needs to tell a shared secret from a real
     issuer: with HS256 every verifier can also mint, with JWKS none of them can."""
-    assert TestClient(create_app(Settings())).get("/health").json()["tier"]["auth"] == "off"
+    assert (
+        TestClient(create_app(Settings())).get("/health").json()["tier"]["auth"]
+        == "off"
+    )
     assert secured_client().get("/health").json()["tier"]["auth"] == "shared-secret"
     jwks = TestClient(create_app(Settings(jwks_url="https://issuer.example/jwks")))
     assert jwks.get("/health").json()["tier"]["auth"] == "jwks"
@@ -74,7 +82,8 @@ def test_a_token_that_never_expires_is_rejected():
     so an unexpiring token sailed through — a credential with no end date, which
     is not a session but a permanent key."""
     response = secured_client().post(
-        "/ask", json={"question": "hello"},
+        "/ask",
+        json={"question": "hello"},
         headers=bearer(mint("assistant:ask", expires_in=None)),
     )
     assert response.status_code == 401
@@ -86,7 +95,9 @@ def test_a_token_that_names_no_subject_is_rejected():
     scoped by it. A token without one used to land in the shared anonymous
     namespace, which is every caller's namespace at once."""
     response = secured_client().post(
-        "/ask", json={"question": "hello"}, headers=bearer(mint("assistant:ask", sub=None))
+        "/ask",
+        json={"question": "hello"},
+        headers=bearer(mint("assistant:ask", sub=None)),
     )
     assert response.status_code == 401
     assert "sub" in response.json()["detail"]
@@ -95,7 +106,9 @@ def test_a_token_that_names_no_subject_is_rejected():
 def test_a_token_whose_subject_is_blank_is_rejected():
     """Present-but-empty passes a required-claims check and still names nobody."""
     response = secured_client().post(
-        "/ask", json={"question": "hello"}, headers=bearer(mint("assistant:ask", sub="   "))
+        "/ask",
+        json={"question": "hello"},
+        headers=bearer(mint("assistant:ask", sub="   ")),
     )
     assert response.status_code == 401
     assert "subject" in response.json()["detail"]
@@ -110,14 +123,16 @@ def test_an_issuer_is_required_once_one_is_configured():
     assert "iss" in no_issuer.json()["detail"]
 
     wrong = c.post(
-        "/ask", json={"question": "hello"},
+        "/ask",
+        json={"question": "hello"},
         headers=bearer(mint("assistant:ask", issuer="https://evil.example")),
     )
     assert wrong.status_code == 401
     assert "issuer" in wrong.json()["detail"]
 
     right = c.post(
-        "/ask", json={"question": "hello"},
+        "/ask",
+        json={"question": "hello"},
         headers=bearer(mint("assistant:ask", issuer=ISSUER)),
     )
     assert right.status_code == 200
@@ -126,7 +141,8 @@ def test_an_issuer_is_required_once_one_is_configured():
 # --- expiry and clock skew ------------------------------------------------------
 def test_an_expired_token_is_rejected():
     response = secured_client().post(
-        "/ask", json={"question": "hello"},
+        "/ask",
+        json={"question": "hello"},
         headers=bearer(mint("assistant:ask", expires_in=-600)),
     )
     assert response.status_code == 401
@@ -140,27 +156,40 @@ def test_clock_skew_is_a_policy_with_an_edge_on_both_sides():
     is the argument for keeping it small."""
     tolerant = secured_client(jwt_leeway=120)
     just_expired = bearer(mint("assistant:ask", expires_in=-30))
-    assert tolerant.post("/ask", json={"question": "x"}, headers=just_expired).status_code == 200
+    assert (
+        tolerant.post("/ask", json={"question": "x"}, headers=just_expired).status_code
+        == 200
+    )
     long_expired = bearer(mint("assistant:ask", expires_in=-600))
-    assert tolerant.post("/ask", json={"question": "x"}, headers=long_expired).status_code == 401
+    assert (
+        tolerant.post("/ask", json={"question": "x"}, headers=long_expired).status_code
+        == 401
+    )
 
     strict = secured_client(jwt_leeway=0)
-    assert strict.post("/ask", json={"question": "x"}, headers=just_expired).status_code == 401
+    assert (
+        strict.post("/ask", json={"question": "x"}, headers=just_expired).status_code
+        == 401
+    )
 
 
 # --- signature, audience, scope -------------------------------------------------
 def test_a_valid_token_with_the_right_scope_is_accepted():
     c = secured_client()
-    assert c.post(
-        "/ask", json={"question": "hello"}, headers=bearer(mint("assistant:ask"))
-    ).status_code == 200
+    assert (
+        c.post(
+            "/ask", json={"question": "hello"}, headers=bearer(mint("assistant:ask"))
+        ).status_code
+        == 200
+    )
 
 
 def test_a_token_for_another_audience_is_rejected():
     # The RFC 8707 passthrough trap: a token minted for some OTHER service must
     # not open this one, even though the signature and expiry check out.
     response = secured_client().post(
-        "/ask", json={"question": "hello"},
+        "/ask",
+        json={"question": "hello"},
         headers=bearer(mint("assistant:ask", audience="other-api")),
     )
     assert response.status_code == 401
@@ -170,7 +199,9 @@ def test_a_token_for_another_audience_is_rejected():
 def test_a_token_missing_the_endpoint_scope_is_rejected():
     # can ask, but /approve demands assistant:approve
     response = secured_client().post(
-        "/approve", json={"tool": "send_telegram"}, headers=bearer(mint("assistant:ask"))
+        "/approve",
+        json={"tool": "send_telegram"},
+        headers=bearer(mint("assistant:ask")),
     )
     assert response.status_code == 401
     assert "scope" in response.json()["detail"]
@@ -179,7 +210,9 @@ def test_a_token_missing_the_endpoint_scope_is_rejected():
 def test_a_forged_token_is_rejected():
     wrong = "a-different-32-byte-signing-key!!!!!"
     response = secured_client().post(
-        "/ask", json={"question": "hello"}, headers=bearer(mint("assistant:ask", key=wrong))
+        "/ask",
+        json={"question": "hello"},
+        headers=bearer(mint("assistant:ask", key=wrong)),
     )
     assert response.status_code == 401
 
@@ -248,7 +281,9 @@ def jwks_policy(**overrides) -> auth.AuthPolicy:
 
 def test_an_issuer_signed_token_is_accepted_against_the_jwks():
     private_pem, public = rsa_keypair()
-    token = jwt.encode(claims("assistant:ask", issuer=ISSUER), private_pem, algorithm="RS256")
+    token = jwt.encode(
+        claims("assistant:ask", issuer=ISSUER), private_pem, algorithm="RS256"
+    )
     ok, reason, subject = auth.identity_from(
         f"Bearer {token}",
         policy=jwks_policy(issuer=ISSUER),
@@ -262,7 +297,9 @@ def test_the_jwks_lane_enforces_the_same_required_claims():
     """The two key sources share one decode path precisely so they cannot drift
     into one being laxer than the other."""
     private_pem, public = rsa_keypair()
-    token = jwt.encode(claims("assistant:ask", expires_in=None), private_pem, algorithm="RS256")
+    token = jwt.encode(
+        claims("assistant:ask", expires_in=None), private_pem, algorithm="RS256"
+    )
     ok, reason, _ = auth.identity_from(
         f"Bearer {token}",
         policy=jwks_policy(),
@@ -281,10 +318,12 @@ def _hs256_by_hand(body: dict, secret: bytes) -> str:
     def seg(raw: bytes) -> bytes:
         return base64.urlsafe_b64encode(raw).rstrip(b"=")
 
-    signing_input = b".".join((
-        seg(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()),
-        seg(json.dumps(body).encode()),
-    ))
+    signing_input = b".".join(
+        (
+            seg(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()),
+            seg(json.dumps(body).encode()),
+        )
+    )
     mac = hmac.new(secret, signing_input, hashlib.sha256).digest()
     return (signing_input + b"." + seg(mac)).decode()
 

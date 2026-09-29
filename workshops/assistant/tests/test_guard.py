@@ -8,8 +8,8 @@ question for the eval suite; whether a well-behaved answer can unblock something
 the deterministic screen refused is a question for this file, and the answer
 must be no regardless of which model you plug in.
 """
-import pytest
 
+import pytest
 from assistant import guardrails
 from assistant.guard import GUARD_PROMPT, build_screen, model_guard, with_guard
 from assistant.settings import Settings
@@ -97,7 +97,8 @@ def test_only_an_exact_verdict_counts_as_one(reply, monkeypatch):
 
 def test_a_block_verdict_is_recognised(monkeypatch):
     monkeypatch.setattr(
-        "assistant.adapters.ollama_generate", lambda *a, **k: "  injection\n",
+        "assistant.adapters.ollama_generate",
+        lambda *a, **k: "  injection\n",
         raising=False,
     )
     assert model_guard("http://fake", "m")("some text") is True
@@ -120,7 +121,9 @@ def test_the_guard_is_off_unless_both_a_host_and_a_model_are_configured():
     assert build_screen(None, None) is guardrails.screen
     assert build_screen("http://ollama:11434", None) is guardrails.screen
     assert build_screen(None, "llama-guard3:8b") is guardrails.screen
-    assert build_screen("http://ollama:11434", "llama-guard3:8b") is not guardrails.screen
+    assert (
+        build_screen("http://ollama:11434", "llama-guard3:8b") is not guardrails.screen
+    )
 
 
 def test_health_says_which_screen_is_live():

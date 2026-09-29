@@ -4,13 +4,12 @@ The point of these tests is not that OTel works. It is that the trace answers th
 questions a latency number cannot: which tools ran, in what order, where the time
 went, and whether an irreversible one fired.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 import pytest
-from opentelemetry.trace import StatusCode
-
 from assistant.agent import Step, run
 from assistant.observe import (
     AGENT_APPROVED,
@@ -32,13 +31,16 @@ from assistant.observe import (
     traced_run,
 )
 from assistant.tools import Tool
+from opentelemetry.trace import StatusCode
 
 
 def registry(**overrides: Any) -> dict[str, Tool]:
     base = {
         "read_emails": Tool("read_emails", lambda **_: ["one mail"], False, "read"),
         "read_news": Tool("read_news", lambda **_: "a headline", False, "read"),
-        "send_telegram": Tool("send_telegram", lambda **_: {"sent": True}, True, "gated"),
+        "send_telegram": Tool(
+            "send_telegram", lambda **_: {"sent": True}, True, "gated"
+        ),
     }
     base.update(overrides)
     return base
@@ -49,7 +51,11 @@ def script(*steps: Step):
     remaining = list(steps)
 
     def decide(goal: str, state: list[Any]) -> Step:
-        return remaining.pop(0) if remaining else Step("", {}, is_final=True, answer="done")
+        return (
+            remaining.pop(0)
+            if remaining
+            else Step("", {}, is_final=True, answer="done")
+        )
 
     return decide
 
@@ -78,7 +84,9 @@ def test_a_failing_tool_is_marked_error_and_the_exception_still_propagates(rec):
     def boom(**_: Any) -> Any:
         raise ConnectionError("inbox unreachable")
 
-    tools = traced_registry(registry(read_emails=Tool("read_emails", boom, False, "")), rec.tracer)
+    tools = traced_registry(
+        registry(read_emails=Tool("read_emails", boom, False, "")), rec.tracer
+    )
     with pytest.raises(ConnectionError):
         tools["read_emails"].fn()
 
@@ -95,7 +103,9 @@ def test_the_trace_records_which_gated_tools_actually_fired(rec):
     tools["send_telegram"].fn(chat_id="1", message="hi")
 
     assert gated_tool_calls(rec.spans()) == ["send_telegram"]
-    gated = [s for s in rec.spans() if (s.attributes or {})[TOOL_NAME] == "send_telegram"]
+    gated = [
+        s for s in rec.spans() if (s.attributes or {})[TOOL_NAME] == "send_telegram"
+    ]
     assert (gated[0].attributes or {})[TOOL_GATED] is True
 
 
@@ -104,7 +114,9 @@ def test_the_agent_run_gets_a_root_span_carrying_its_outcome(rec):
         run,
         "summarise my inbox",
         rec.tracer,
-        decide=script(Step("read_emails", {}), Step("", {}, is_final=True, answer="two mails")),
+        decide=script(
+            Step("read_emails", {}), Step("", {}, is_final=True, answer="two mails")
+        ),
         registry=traced_registry(registry(), rec.tracer),
     )
     assert result.text == "two mails"
@@ -168,6 +180,7 @@ def test_a_containment_breach_is_an_error_with_a_policy_violation_outcome(rec):
     """traced_run trusts the loop's own confession. If a gated tool fired without
     approval, the root span must say so loudly — ERROR status, explicit outcome —
     because this is the one trace a reviewer must never scroll past."""
+
     class Breach:
         audit = ["ran: send_telegram"]
         pending = None

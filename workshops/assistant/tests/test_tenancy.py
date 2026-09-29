@@ -8,11 +8,11 @@ whose words happened to match one of her memories.
 These tests are written against the leak rather than the fix, so they would fail
 again if someone reintroduced a single shared store.
 """
+
 import sqlite3
 from dataclasses import replace
 
 import pytest
-
 from assistant.composers import ABSTAIN
 from assistant.core import Assistant
 from assistant.memory import AssistantMemory
@@ -52,7 +52,9 @@ def test_each_subject_recalls_their_own_answer_to_the_same_question(backend, tmp
     store.remember("I prefer the aisle seat", source="user:bob", subject="bob")
 
     def recalled(subject: str) -> str:
-        return store.recall("semantic", "which seat do I prefer", subject=subject)[0].text
+        return store.recall("semantic", "which seat do I prefer", subject=subject)[
+            0
+        ].text
 
     assert "window" in recalled("alice")
     assert "aisle" in recalled("bob")
@@ -82,7 +84,9 @@ def test_all_crosses_tenants_because_it_is_the_operator_view():
 
 def test_a_turn_not_worth_remembering_is_not_remembered():
     store = in_memory()
-    assert store.remember("what time is it", source="user:alice", subject="alice") is None
+    assert (
+        store.remember("what time is it", source="user:alice", subject="alice") is None
+    )
     assert store.all() == []
 
 
@@ -126,7 +130,7 @@ def test_a_recalled_memory_is_never_passed_off_as_a_citation():
 
 
 def test_a_memory_answer_says_so_rather_than_stating_it_as_fact():
-    """"You told me earlier" and "Lima is your timezone" are different claims
+    """ "You told me earlier" and "Lima is your timezone" are different claims
     with different failure modes. The first is checkable by the person reading
     it; the second is the assistant vouching for something it never verified."""
     assistant = build_assistant(Settings())
@@ -154,8 +158,15 @@ def test_a_document_answer_is_still_grounded_in_documents():
     assistant answers from the document and cites it."""
     assistant = build_assistant(Settings())
     assistant.ask(ALICE_FACT, subject="alice")
-    assistant.ingest([{"text": "refunds are processed within five business days",
-                       "source": "refunds.md"}], subject="alice")
+    assistant.ingest(
+        [
+            {
+                "text": "refunds are processed within five business days",
+                "source": "refunds.md",
+            }
+        ],
+        subject="alice",
+    )
     answer = assistant.ask("how long do refunds take", subject="alice")
     assert "five business days" in answer["answer"]
     assert answer["grounding"] == "documents"
@@ -215,8 +226,12 @@ class NearestNeighbours:
             reverse=True,
         )
         return [
-            Chunk(text=self.docs[name], source=f"{name}.md", score=score,
-                  scored_by="cosine")
+            Chunk(
+                text=self.docs[name],
+                source=f"{name}.md",
+                score=score,
+                scored_by="cosine",
+            )
             for score, name in ranked[:k]
             if score >= self.floor
         ]
@@ -245,7 +260,9 @@ def test_a_document_that_shares_no_words_with_the_question_still_answers_it():
     document sits in the response under `contexts`.
     """
     assistant = with_neighbours()
-    answer = assistant.ask("how quickly do i get money back for a work trip", subject="alice")
+    answer = assistant.ask(
+        "how quickly do i get money back for a work trip", subject="alice"
+    )
     assert "reimbursed" in answer["answer"]
     assert answer["grounding"] == "documents"
     assert answer["citations"][0]["source"] == "expenses.md"

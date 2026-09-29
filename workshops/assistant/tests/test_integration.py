@@ -6,6 +6,7 @@ Each service test skips itself unless its endpoint is configured, so the suite i
 green on a laptop with nothing running and meaningful on a machine that has Qdrant,
 Ollama, or an MCP server.
 """
+
 import os
 
 import pytest
@@ -22,16 +23,20 @@ def test_qdrant_round_trip():
     from assistant.adapters import QdrantStore
 
     store = QdrantStore(url, collection="assistant_test")
-    store.add([
-        "the invoice was paid on tuesday",
-        "the meeting moved to friday",
-    ])
+    store.add(
+        [
+            "the invoice was paid on tuesday",
+            "the meeting moved to friday",
+        ]
+    )
     hits = store.search("invoice", k=1)
     assert hits and "invoice" in hits[0].text
     # the payload round-trips the provenance, not just the words: a citation
     # written from a Qdrant hit has to name the same source it would in memory
     assert hits[0].source and hits[0].version
-    assert store.get(hits[0].id) is not None, "a stored chunk must be fetchable by its id"
+    assert store.get(hits[0].id) is not None, (
+        "a stored chunk must be fetchable by its id"
+    )
 
 
 def test_qdrant_tenant_filter_isolates_users():
@@ -73,11 +78,13 @@ def test_the_sparse_arm_finds_a_string_the_dense_arm_cannot():
     from assistant.adapters import QdrantStore
 
     store = QdrantStore(url, collection="assistant_hybrid_test")
-    store.add([
-        "refunds for approved claims are processed within five business days",
-        "order ZX-99417 was shipped on tuesday and delivered on thursday",
-        "the office is closed on public holidays",
-    ])
+    store.add(
+        [
+            "refunds for approved claims are processed within five business days",
+            "order ZX-99417 was shipped on tuesday and delivered on thursday",
+            "the office is closed on public holidays",
+        ]
+    )
     hits = store.search("ZX-99417", k=1)
     assert hits and "ZX-99417" in hits[0].text, (
         "the exact string was not retrieved — the sparse arm is not wired in"
@@ -100,9 +107,7 @@ def test_the_relevance_threshold_returns_nothing_rather_than_the_nearest_thing()
 
     # 0.99 is an unreachable cosine for anything but a near-exact match, which
     # makes this a test of the mechanism rather than of a tuned number.
-    store = QdrantStore(
-        url, collection="assistant_threshold_test", min_score=0.99
-    )
+    store = QdrantStore(url, collection="assistant_threshold_test", min_score=0.99)
     store.add(["the office is closed on public holidays"])
     assert store.search("quarterly revenue by region", k=3) == []
     # ...and the gate is a floor, not a mute: an exact match still gets through
@@ -124,11 +129,13 @@ def _floor_store(collection: str):
     from assistant.adapters import QdrantStore
 
     store = QdrantStore(url, collection=collection, min_score=DEPLOYED_FLOOR)
-    store.add([
-        "refunds for approved claims are processed within five business days",
-        "order ZX-99417 was shipped on tuesday and delivered on thursday",
-        "the office is closed on public holidays",
-    ])
+    store.add(
+        [
+            "refunds for approved claims are processed within five business days",
+            "order ZX-99417 was shipped on tuesday and delivered on thursday",
+            "the office is closed on public holidays",
+        ]
+    )
     return store
 
 
@@ -197,9 +204,8 @@ def test_mcp_server_discovers_and_calls_tools():
     """In-memory MCP client drives the real server — discovery + dispatch, no transport."""
     pytest.importorskip("mcp")
     import anyio
-    from mcp import Client
-
     from assistant.mcp_server import build_server
+    from mcp import Client
 
     async def check() -> None:
         async with Client(build_server()) as c:
@@ -268,13 +274,18 @@ def test_the_operators_allowlist_is_what_ungates_a_discovered_tool():
     assert gated.base_registry["lookup_fact"].requires_approval is True
     assert gated.ask("look up the company fact for the refund window")["pending"]
 
-    ungated = build_assistant(Settings(  # type: ignore[arg-type]
-        mcp_server=build_server(), mcp_readonly_allowlist=("lookup_fact",)
-    ))
+    ungated = build_assistant(
+        Settings(  # type: ignore[arg-type]
+            mcp_server=build_server(), mcp_readonly_allowlist=("lookup_fact",)
+        )
+    )
     assert ungated.base_registry["lookup_fact"].requires_approval is False
-    assert "five business days" in ungated.ask(
-        "look up the company fact for the refund window"
-    )["answer"].lower()
+    assert (
+        "five business days"
+        in ungated.ask("look up the company fact for the refund window")[
+            "answer"
+        ].lower()
+    )
 
 
 def test_the_assistant_plans_with_a_tool_it_discovered_from_the_real_server():
@@ -289,9 +300,11 @@ def test_the_assistant_plans_with_a_tool_it_discovered_from_the_real_server():
 
     # mcp_tools takes anything the v2 Client accepts — a URL in production, an
     # in-process server here — so this exercises the production wiring path.
-    assistant = build_assistant(Settings(  # type: ignore[arg-type]
-        mcp_server=build_server(), mcp_readonly_allowlist=("lookup_fact",)
-    ))
+    assistant = build_assistant(
+        Settings(  # type: ignore[arg-type]
+            mcp_server=build_server(), mcp_readonly_allowlist=("lookup_fact",)
+        )
+    )
     assert "lookup_fact" in assistant.base_registry
     assert assistant.base_registry["lookup_fact"].required_args == ("topic",)
 
@@ -309,9 +322,11 @@ def test_discovered_tools_stay_isolated_per_caller():
     from assistant.service import build_assistant
     from assistant.settings import Settings
 
-    assistant = build_assistant(Settings(  # type: ignore[arg-type]
-        mcp_server=build_server(), mcp_readonly_allowlist=("lookup_fact",)
-    ))
+    assistant = build_assistant(
+        Settings(  # type: ignore[arg-type]
+            mcp_server=build_server(), mcp_readonly_allowlist=("lookup_fact",)
+        )
+    )
     assistant.ask("I prefer to be called Lu and I work in the Lima timezone", "alice")
 
     mine = assistant.ask("look up the company fact for the refund window", "alice")
@@ -327,7 +342,10 @@ def test_discovered_tools_stay_isolated_per_caller():
     assert "Lima" in personal["answer"]
     assert personal["grounding"] == "memory"
     assert personal["citations"] == [], "a memory is not a document"
-    assert "Lima" not in assistant.ask("which timezone should we schedule in", "bob")["answer"]
+    assert (
+        "Lima"
+        not in assistant.ask("which timezone should we schedule in", "bob")["answer"]
+    )
 
 
 def test_the_real_telegram_connector_delivers_a_message():
@@ -430,11 +448,13 @@ def test_a_real_model_pipeline_still_refuses_the_whole_attack_corpus():
     from assistant.settings import Settings
 
     rows = _redteam_rows("indirect", "approval-bypass", "exfiltration", "tool-output")
-    assistant = build_assistant(Settings(
-        ollama_host=host,
-        ollama_model=os.getenv("OLLAMA_MODEL", "qwen3.5:9b"),
-        guard_model=os.getenv("ASSISTANT_GUARD_MODEL"),
-    ))
+    assistant = build_assistant(
+        Settings(
+            ollama_host=host,
+            ollama_model=os.getenv("OLLAMA_MODEL", "qwen3.5:9b"),
+            guard_model=os.getenv("ASSISTANT_GUARD_MODEL"),
+        )
+    )
 
     contained = 0
     for row in rows:
@@ -447,7 +467,9 @@ def test_a_real_model_pipeline_still_refuses_the_whole_attack_corpus():
         assert "@" not in answered["answer"] or "[REDACTED]" in answered["answer"], row
         contained += 1
 
-    assert contained == len(rows) > 8, "the corpus shrank; this proves less than it says"
+    assert contained == len(rows) > 8, (
+        "the corpus shrank; this proves less than it says"
+    )
 
 
 def test_the_guard_lane_reports_itself_on_health():

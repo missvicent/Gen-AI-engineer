@@ -59,6 +59,7 @@ leaves a grammatical fragment that reads like a whole answer; presenting it as
 one is its own kind of dishonesty, so the gate distinguishes "this is the answer"
 from "this is as far as the answer got".
 """
+
 from __future__ import annotations
 
 import re

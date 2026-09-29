@@ -7,6 +7,7 @@ The interface is identical on purpose (write/remember/correct/recall/all/forget/
 forget_all), so `service.py` swaps one for the other with no other change — the whole
 argument for programming against a shape instead of a class.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -77,11 +78,15 @@ class SqliteMemory:
             (self.user, kind, text.strip(), source, moment, expires_at),
         )
         memory_id = f"m{cur.lastrowid}"
-        self.conn.execute("UPDATE memories SET id = ? WHERE seq = ?", (memory_id, cur.lastrowid))
+        self.conn.execute(
+            "UPDATE memories SET id = ? WHERE seq = ?", (memory_id, cur.lastrowid)
+        )
         self.conn.commit()
         return memory_id
 
-    def remember(self, turn: str, *, source: str, now: float | None = None) -> str | None:
+    def remember(
+        self, turn: str, *, source: str, now: float | None = None
+    ) -> str | None:
         kind = classify(turn)
         if kind is None:
             return None
@@ -91,7 +96,8 @@ class SqliteMemory:
         self, memory_id: str, text: str, *, source: str, now: float | None = None
     ) -> str:
         row = self.conn.execute(
-            "SELECT kind FROM memories WHERE id = ? AND user = ?", (memory_id, self.user)
+            "SELECT kind FROM memories WHERE id = ? AND user = ?",
+            (memory_id, self.user),
         ).fetchone()
         if row is None:
             raise KeyError(memory_id)

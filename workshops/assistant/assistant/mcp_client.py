@@ -10,6 +10,7 @@ assistant gained without a code change is a tool nobody reviewed, described by
 the party that wants it called. Gating is therefore decided HERE, from local
 policy, and the server's annotations only ever get to make the answer stricter.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
@@ -63,6 +64,8 @@ def as_agent_tools(
     `requires_approval` comes from `gate` above, not from the spec.
     """
     raise NotImplementedError  # TODO
+
+
 def extend_assistant(
     base_registry: dict[str, Tool],
     discovered: list[dict],

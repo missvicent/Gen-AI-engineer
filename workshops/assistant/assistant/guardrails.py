@@ -23,6 +23,7 @@ file buys is that the cheap obfuscations stop working.
 
 Reference: ../../after/src/assistant/guardrails.py.
 """
+
 from __future__ import annotations
 
 import re
@@ -99,10 +100,20 @@ SQUASHED_INJECTION = [
 
 #: Digits and symbols that stand in for letters. Folded on the squashed surface
 #: only — the reader must still see exactly the text that was sent.
-LEET = str.maketrans({
-    "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t",
-    "@": "a", "$": "s", "!": "i", "|": "l",
-})
+LEET = str.maketrans(
+    {
+        "0": "o",
+        "1": "i",
+        "3": "e",
+        "4": "a",
+        "5": "s",
+        "7": "t",
+        "@": "a",
+        "$": "s",
+        "!": "i",
+        "|": "l",
+    }
+)
 
 
 def decode_and_normalize(text: str) -> str:

@@ -6,6 +6,7 @@ kept to a few read-only tools so the capstone has a real server to talk to over
 Run it directly for stdio (`python -m assistant.mcp_server`) or serve it over
 streamable HTTP for the composed stack (see build_server().run(...)).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -30,7 +31,8 @@ def _lookup_fact(topic: str) -> dict:
     if not words:
         return {"error": "no topic given", "known": sorted(_FACTS)}
     scored = [
-        (len(_normalise(key) & words) / len(_normalise(key)), key) for key in sorted(_FACTS)
+        (len(_normalise(key) & words) / len(_normalise(key)), key)
+        for key in sorted(_FACTS)
     ]
     score, best = max(scored)
     if score < 1.0:  # every word of the topic must be present — no near-misses

@@ -7,7 +7,6 @@ accuracy is an eval, and evals are Phase 3.
 """
 
 from __future__ import annotations
-from typing import Type
 
 import json
 

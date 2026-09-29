@@ -11,8 +11,6 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
-from fastapi.testclient import TestClient
-
 from assistant import deadline
 from assistant.adapters import InMemoryRag
 from assistant.api import create_app
@@ -29,6 +27,7 @@ from assistant.resilience import Policy
 from assistant.service import build_assistant
 from assistant.settings import COMPOSE_TIMEOUT_SECONDS, Settings
 from assistant.tools import REGISTRY, rewrap
+from fastapi.testclient import TestClient
 
 FAST = Policy(attempts=2, base_delay=0.0, timeout=None)
 
@@ -47,7 +46,8 @@ def degraded_client() -> TestClient:
     app = create_app(Settings())
     a = app.state.assistant
     a.rag = FallbackRag(
-        ExplodingRag(), InMemoryRag(),
+        ExplodingRag(),
+        InMemoryRag(),
         lambda component, why: a.degraded.__setitem__(component, why),
         policy=FAST,
     )
@@ -90,7 +90,9 @@ def test_the_composition_budget_is_deployment_policy_not_a_constant():
     setting stays because the right budget is a fact about the hardware
     underneath, not about the code. Both paths read it from the same setting so
     batch and stream cannot drift apart."""
-    slow = Settings(ollama_host="http://host.docker.internal:11434", compose_timeout=900)
+    slow = Settings(
+        ollama_host="http://host.docker.internal:11434", compose_timeout=900
+    )
     assert slow.compose_timeout == 900
     assert Settings().compose_timeout == COMPOSE_TIMEOUT_SECONDS
 
@@ -205,8 +207,12 @@ def test_the_degraded_composer_answers_from_whatever_retrieval_kept():
     (`ASSISTANT_MIN_SCORE`). An empty list means "nothing relevant"; a non-empty
     one means "this is the evidence", and the composer's job is to use it."""
     kept = ["staff are reimbursed for travel expenses within ten business days"]
-    answer = offline_compose("how quickly do i get money back for a work trip", kept, [])
-    assert "reimbursed" in answer, "a synonym-only hit is exactly what semantic recall is for"
+    answer = offline_compose(
+        "how quickly do i get money back for a work trip", kept, []
+    )
+    assert "reimbursed" in answer, (
+        "a synonym-only hit is exactly what semantic recall is for"
+    )
     assert offline_compose("anything at all", [], []) == ABSTAIN
 
 
@@ -439,9 +445,13 @@ def test_a_completion_is_asked_for_in_bounded_form(monkeypatch):
     seen = fake_ollama(monkeypatch, {})
     from assistant.adapters import COMPLETION_TOKEN_CAP, ollama_generate
 
-    out = ollama_generate("how long do refunds take", host="http://ollama:11434", model="m")
+    out = ollama_generate(
+        "how long do refunds take", host="http://ollama:11434", model="m"
+    )
     assert out == "five business days"
-    assert seen["think"] is False, "a reasoning model spends the whole budget deliberating"
+    assert seen["think"] is False, (
+        "a reasoning model spends the whole budget deliberating"
+    )
     assert seen["options"]["num_predict"] == COMPLETION_TOKEN_CAP, (
         "an unbounded generation is a request whose duration the model decides"
     )
@@ -616,16 +626,19 @@ def test_an_upgrade_over_an_older_table_still_replays(tmp_path):
         "  created_at TEXT NOT NULL DEFAULT (datetime('now'))"
         ")"
     )
-    old.execute("INSERT INTO idempotency_keys (key) VALUES ('written-by-the-old-build')")
+    old.execute(
+        "INSERT INTO idempotency_keys (key) VALUES ('written-by-the-old-build')"
+    )
     old.commit()
     old.close()
 
     store = IdempotencyStore(str(db))
     result, replayed = store.run("batch-upgrade", lambda: {"ingested": 1})
     assert (result, replayed) == ({"ingested": 1}, False)
-    assert store.run("batch-upgrade", lambda: {"ingested": 1}) == ({"ingested": 1}, True), (
-        "the replay has to carry the original answer, which is what needs the column"
-    )
+    assert store.run("batch-upgrade", lambda: {"ingested": 1}) == (
+        {"ingested": 1},
+        True,
+    ), "the replay has to carry the original answer, which is what needs the column"
     # The rows from before the upgrade survive it: a migration that protects the
     # new path by dropping the table would un-protect every key already claimed.
     assert store.run("written-by-the-old-build", lambda: {"ingested": 99})[1] is True
@@ -712,8 +725,9 @@ def test_the_same_call_twice_in_one_request_is_refused_not_sent_twice():
     A retry that got past every layer above stops here."""
     outbox = Outbox()
     sends: list[str] = []
-    send = recorded(lambda chat_id, message: sends.append(message) or {"sent": True},
-                    outbox)
+    send = recorded(
+        lambda chat_id, message: sends.append(message) or {"sent": True}, outbox
+    )
     send(chat_id="ops", message="the site is down")
     again = send(chat_id="ops", message="the site is down")
     assert len(sends) == 1

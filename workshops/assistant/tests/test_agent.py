@@ -27,7 +27,9 @@ def test_gated_tool_fires_with_approval():
         Step(tool="", args={}, is_final=True, answer="sent"),
     ]
     it = iter(script)
-    res = run("message the team", lambda g, s: next(it), approvals={"send_telegram": True})
+    res = run(
+        "message the team", lambda g, s: next(it), approvals={"send_telegram": True}
+    )
     assert res.text == "sent"
 
 

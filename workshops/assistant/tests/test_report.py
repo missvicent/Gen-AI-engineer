@@ -10,10 +10,10 @@ without a human in the loop: the stamps must be derived rather than typed, the
 numbers must move when the system moves, and a breach must show up as a bypass
 count the merge gate can block on.
 """
+
 from __future__ import annotations
 
 import pytest
-
 from assistant.observe import PIPELINE_SPAN
 from assistant.report import (
     EXCHANGES,
@@ -121,7 +121,9 @@ def test_a_request_that_skips_the_meter_stops_the_report():
 
     assistant.ask("what is the refund policy")  # the off-meter ask
     with pytest.raises(SystemExit) as refused:
-        require_every_run_metered(meter, len(assistant.rec.named(PIPELINE_SPAN)), PIPELINE_SPAN)
+        require_every_run_metered(
+            meter, len(assistant.rec.named(PIPELINE_SPAN)), PIPELINE_SPAN
+        )
     assert "metered_ask" in str(refused.value), "a refusal has to name the way in"
     assert f"{asked} exchange(s)" in str(refused.value)
 

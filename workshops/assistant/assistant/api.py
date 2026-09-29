@@ -22,6 +22,7 @@ restarts, and a client that closed the tab is still being generated for.
 
 Reference: ../../after/src/assistant/api.py.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -123,14 +124,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         returning 429s" is exactly the moment someone needs the trace, and a
         rejection nobody can look up is a rejection nobody can explain.
         """
-        with observe.request_scope(request.headers.get("x-request-id")) as rid, stage(
-            assistant.rec.tracer, observe.REQUEST_SPAN,
-            **{
-                observe.REQUEST_ID: rid,
-                observe.HTTP_METHOD: request.method,
-                observe.HTTP_ROUTE: request.url.path,
-            },
-        ) as span:
+        with (
+            observe.request_scope(request.headers.get("x-request-id")) as rid,
+            stage(
+                assistant.rec.tracer,
+                observe.REQUEST_SPAN,
+                **{
+                    observe.REQUEST_ID: rid,
+                    observe.HTTP_METHOD: request.method,
+                    observe.HTTP_ROUTE: request.url.path,
+                },
+            ) as span,
+        ):
             response = await call_next(request)
             span.set_attribute(observe.HTTP_STATUS, response.status_code)
             response.headers["x-request-id"] = rid
@@ -207,12 +212,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # cold cache is a network round trip), and a 401 that never reaches
             # the pipeline is otherwise invisible in the trace.
             with stage(
-                assistant.rec.tracer, observe.AUTH_SPAN,
+                assistant.rec.tracer,
+                observe.AUTH_SPAN,
                 **{observe.AUTH_MODE: assistant.tier()["auth"]},
             ) as span:
                 ok, reason, subject = auth.identity_from(
                     request.headers.get("authorization", ""),
-                    policy=policy, required_scope=scope, keys=keys,
+                    policy=policy,
+                    required_scope=scope,
+                    keys=keys,
                 )
                 span.set_attribute(observe.AUTH_OK, ok)
                 if not ok:
@@ -291,7 +299,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return assistant.ingest(list(body.docs), subject)
 
     @app.delete("/corpus/{source}")
-    def forget(source: str, subject: str = Depends(require("assistant:ingest"))) -> dict:
+    def forget(
+        source: str, subject: str = Depends(require("assistant:ingest"))
+    ) -> dict:
         # Scoped to the caller's tenant by the same argument that scopes search:
         # a delete that crossed tenants would be a denial-of-service with a REST
         # interface. Requires the ingest scope, because the right to add a
@@ -302,7 +312,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return assistant.forget(source, subject)
 
     @app.get("/evidence/{chunk_id}")
-    def evidence(chunk_id: str, subject: str = Depends(require("assistant:ask"))) -> dict:
+    def evidence(
+        chunk_id: str, subject: str = Depends(require("assistant:ask"))
+    ) -> dict:
         # What makes a citation checkable: the id printed in an answer resolves
         # back to the exact text, source and revision that produced it. A 404 is
         # a real answer here — the evidence is gone, and the reader should know
@@ -348,8 +360,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # bound to the AUTHENTICATED subject, never to a subject in the body
         grant = assistant.approvals.mint(subject, body.tool, body.args)
         assistant.audit_log.record(
-            "approval.granted", subject, f"{body.tool} (approval {grant.approval_id})",
-            approval_id=grant.approval_id, args=body.args,
+            "approval.granted",
+            subject,
+            f"{body.tool} (approval {grant.approval_id})",
+            approval_id=grant.approval_id,
+            args=body.args,
         )
         return {
             "approved": body.tool,

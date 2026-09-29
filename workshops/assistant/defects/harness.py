@@ -10,6 +10,7 @@ is green the moment you write it, so it never demonstrates that it can go red,
 and a green test that has never failed is a green test you have no evidence
 about. Half of them are asserting something subtly beside the point.
 """
+
 from __future__ import annotations
 
 import os

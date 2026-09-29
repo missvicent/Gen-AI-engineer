@@ -19,6 +19,7 @@ carries the provider's numbers over from the adapter.
 
 Reference: ../../after/src/assistant/usage.py.
 """
+
 from __future__ import annotations
 
 from contextvars import ContextVar

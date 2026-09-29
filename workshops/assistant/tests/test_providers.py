@@ -3,12 +3,12 @@
 None of these need a network, a key or a model. Provider selection is a decision
 made from configuration, and a decision is testable without the thing it selects.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterator
 
 import pytest
-
 from assistant import providers
 from assistant.composers import ABSTAIN, model_composer, model_stream_composer
 from assistant.providers import ConfigError
@@ -55,7 +55,9 @@ def test_the_brain_row_says_which_vendor_not_merely_that_there_is_one(monkeypatc
     ("provider", "variable"),
     [("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY")],
 )
-def test_a_hosted_provider_without_its_key_stops_the_boot(provider, variable, monkeypatch):
+def test_a_hosted_provider_without_its_key_stops_the_boot(
+    provider, variable, monkeypatch
+):
     """The failure this prevents is a service that answers for a week from the
     offline stitcher while its operator believes they are on a frontier model.
     The message names the variable, because "provider unavailable" sends someone
@@ -103,8 +105,12 @@ def test_a_failing_provider_falls_to_the_local_stitcher_and_never_to_a_vendor():
     degraded: dict[str, str] = {}
     from assistant.fallbacks import fallback_composer
 
-    compose = fallback_composer(model_composer(dead), lambda k, v: degraded.update({k: v}))
-    answer = compose("what is the refund window", ["Refunds close after ten days."], [], [])
+    compose = fallback_composer(
+        model_composer(dead), lambda k, v: degraded.update({k: v})
+    )
+    answer = compose(
+        "what is the refund window", ["Refunds close after ten days."], [], []
+    )
 
     assert calls == ["primary"], "the primary was tried exactly once per attempt path"
     assert "ten days" in answer, "the offline stitcher answered from the same evidence"
@@ -121,7 +127,9 @@ def test_every_provider_shares_one_prompt_and_one_refusal_contract():
         seen.append(prompt)
         return "The window is ten business days. NO_ANSWER but I am not certain."
 
-    answer = model_composer(spy)("how long", ["Refunds close after ten business days."], [], [])
+    answer = model_composer(spy)(
+        "how long", ["Refunds close after ten business days."], [], []
+    )
 
     assert "[c1]" in seen[0], "the grounded prompt is the one that asks for citations"
     assert answer == "The window is ten business days."
@@ -147,7 +155,9 @@ def test_composition_still_abstains_before_reaching_any_provider():
         raise AssertionError("the provider was called with no evidence")
 
     assert model_composer(never)("anything", [], [], []) == ABSTAIN
-    assert list(model_stream_composer(never_stream)("anything", [], [], [])) == [ABSTAIN]
+    assert list(model_stream_composer(never_stream)("anything", [], [], [])) == [
+        ABSTAIN
+    ]
 
 
 # --- embedders are chosen separately, and just as explicitly -------------------

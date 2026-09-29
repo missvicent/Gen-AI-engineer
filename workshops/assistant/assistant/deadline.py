@@ -26,6 +26,7 @@ turns an unbounded request into a bounded one and is most of the value.
 
 Reference: ../../after/src/assistant/deadline.py.
 """
+
 from __future__ import annotations
 
 import time

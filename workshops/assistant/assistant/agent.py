@@ -3,6 +3,7 @@
 The 'brain' (decide) is injected so tests are deterministic/offline. Gated tools
 never fire without approval; the loop has a hard step cap.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -48,9 +49,14 @@ Decider = Callable[[str, list[tuple[Step, Any]]], Step]
 Consumer = Callable[[str, dict[str, Any]], "str | None"]
 
 
-def run(goal: str, decide: Decider, approvals: dict[str, bool] | None = None,
-        registry: dict[str, Tool] | None = None, max_steps: int = 8,
-        consume: Consumer | None = None) -> AgentResult:
+def run(
+    goal: str,
+    decide: Decider,
+    approvals: dict[str, bool] | None = None,
+    registry: dict[str, Tool] | None = None,
+    max_steps: int = 8,
+    consume: Consumer | None = None,
+) -> AgentResult:
     # TODO: loop to max_steps; final step -> set text and return. Unknown tool ->
     # error observation, keep going. Executed tool -> audit "ran: <tool>"
     # (observe.py derives step_count from the audit list — skip this and a

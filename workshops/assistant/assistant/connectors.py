@@ -29,6 +29,7 @@ whether the message went out, so retrying is how one alert becomes three.
 
 Reference: ../../after/src/assistant/connectors.py.
 """
+
 from __future__ import annotations
 
 import json

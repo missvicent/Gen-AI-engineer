@@ -4,10 +4,10 @@ Every one of these refusals maps to a way a caching layer can quietly break an
 assistant: skipping a message the user expected, answering a stale inbox summary, or
 serving an answer from a run that never finished.
 """
+
 from __future__ import annotations
 
 import pytest
-
 from assistant.agent import AgentResult, Pending
 from assistant.cache import AnswerCache, answer_key, cached_run, is_cacheable
 
@@ -115,7 +115,9 @@ def test_a_side_effecting_request_reruns_every_time_by_design():
         return answered("sent")
 
     for _ in range(3):
-        out = cached_run("text my boss", run, cache, gated_tools_fired=lambda _: ["send_telegram"])
+        out = cached_run(
+            "text my boss", run, cache, gated_tools_fired=lambda _: ["send_telegram"]
+        )
         assert out.cached is False
         assert out.stored is False
 
@@ -133,7 +135,9 @@ def test_the_safety_check_reads_the_trace_rather_than_trusting_the_agent():
         seen.append(result)
         return []
 
-    out = cached_run("what did I miss", lambda _: answered(), cache, gated_tools_fired=from_trace)
+    out = cached_run(
+        "what did I miss", lambda _: answered(), cache, gated_tools_fired=from_trace
+    )
     assert out.stored is True
     assert len(seen) == 1
 

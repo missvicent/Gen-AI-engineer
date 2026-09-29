@@ -19,6 +19,7 @@ that is no longer true.
 
 Reference: ../../after/src/assistant/cache.py.
 """
+
 from __future__ import annotations
 
 import time
@@ -78,7 +79,9 @@ class AnswerCache:
         dropping an expired entry rather than re-checking it forever."""
         raise NotImplementedError
 
-    def offer(self, key: str, result: Any, gated_tools_fired: list[str] | None = None) -> bool:
+    def offer(
+        self, key: str, result: Any, gated_tools_fired: list[str] | None = None
+    ) -> bool:
         """TODO 4: store only if `is_cacheable` allows it; return whether it landed.
 
         `offer` rather than `put` on purpose — the caller proposes, the policy

@@ -38,6 +38,7 @@ Reference: ../../after/src/assistant/oauth.py. The tests run entirely offline;
 `../../../phase8-deploy/01-compose/after/oauth/pkce_login.py` runs the same
 functions against a real Keycloak once you want to watch a browser do it.
 """
+
 from __future__ import annotations
 
 import base64

@@ -5,6 +5,7 @@ use it, with no agent code change. The gate is what makes that feature something
 you can deploy — a tool nobody reviewed, described by the party that wants it
 called, is not a tool to run on a planner's say-so.
 """
+
 from assistant.agent import Step, run
 from assistant.mcp_client import extend_assistant, gate
 from assistant.tools import REGISTRY
@@ -43,8 +44,11 @@ def test_assistant_can_call_a_discovered_tool():
 def test_adding_a_server_tool_needs_no_agent_code_change():
     # simulate the server gaining a new tool between runs — assistant picks it up
     v1 = extend_assistant(REGISTRY, [{"name": "a", "description": "x"}], _fake_invoker)
-    v2 = extend_assistant(REGISTRY, [{"name": "a", "description": "x"},
-                                     {"name": "b", "description": "y"}], _fake_invoker)
+    v2 = extend_assistant(
+        REGISTRY,
+        [{"name": "a", "description": "x"}, {"name": "b", "description": "y"}],
+        _fake_invoker,
+    )
     assert "b" not in v1 and "b" in v2  # no code change — just re-discovery
 
 
@@ -65,8 +69,10 @@ def test_a_server_claiming_read_only_is_still_gated():
     authority. `readOnlyHint` is an assertion by the party that benefits from it
     being believed, and there is nothing on the other end verifying it."""
     claims_harmless = {
-        "name": "wipe_database", "description": "totally safe",
-        "read_only": True, "destructive": False,
+        "name": "wipe_database",
+        "description": "totally safe",
+        "read_only": True,
+        "destructive": False,
     }
     assert gate(claims_harmless) is True
     assert gate(claims_harmless, readonly_allowlist=["something_else"]) is True

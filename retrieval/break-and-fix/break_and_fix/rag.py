@@ -13,6 +13,7 @@ Debug it with the back-to-front playbook:
 (Embedders are injected so this runs offline and deterministically. The bug is
 exactly the one you'd hit with real models.)
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -25,7 +26,9 @@ Embedder = Callable[[str], list[float]]
 def embedder_a(text: str) -> list[float]:
     """'Model A' — e.g. bge-small-en-v1.5. Direction encodes the topic."""
     t = text.lower()
-    payments = float(any(w in t for w in ("invoice", "paid", "payment", "wire", "refund")))
+    payments = float(
+        any(w in t for w in ("invoice", "paid", "payment", "wire", "refund"))
+    )
     weather = float(any(w in t for w in ("weather", "sunny", "rain", "cloudy")))
     search = float(any(w in t for w in ("search", "retrieval", "keyword", "vector")))
     return [payments, weather, search]
@@ -39,7 +42,9 @@ def embedder_b(text: str) -> list[float]:
     """
     t = text.lower()
     search = float(any(w in t for w in ("search", "retrieval", "keyword", "vector")))
-    payments = float(any(w in t for w in ("invoice", "paid", "payment", "wire", "refund")))
+    payments = float(
+        any(w in t for w in ("invoice", "paid", "payment", "wire", "refund"))
+    )
     weather = float(any(w in t for w in ("weather", "sunny", "rain", "cloudy")))
     return [search, weather, payments]  # axis order differs from model A!
 
@@ -53,10 +58,13 @@ class RAG:
             self.name,
             vectors_config=models.VectorParams(size=3, distance=models.Distance.COSINE),
         )
-        self.client.upsert(self.name, points=[
-            models.PointStruct(id=i, vector=self.embed(d), payload={"text": d})
-            for i, d in enumerate(docs)
-        ])
+        self.client.upsert(
+            self.name,
+            points=[
+                models.PointStruct(id=i, vector=self.embed(d), payload={"text": d})
+                for i, d in enumerate(docs)
+            ],
+        )
 
     def retrieve(self, query: str, k: int = 2) -> list[str]:
         # Fix: use the same embedder for the query as the one used for the index.

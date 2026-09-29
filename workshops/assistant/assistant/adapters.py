@@ -11,6 +11,7 @@ drags them in.
 - ollama_generate           : a text-completion call against a local model
 - mcp_tools                 : discover + invoke tools on a real MCP server (mcp SDK)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -73,7 +74,9 @@ class InMemoryRag:
         """Resolve a citation back to its evidence."""
         return self._chunks.get(tenant, {}).get(chunk_id)
 
-    def search(self, query: str, k: int = 3, tenant: str = DEFAULT_TENANT) -> list[Chunk]:
+    def search(
+        self, query: str, k: int = 3, tenant: str = DEFAULT_TENANT
+    ) -> list[Chunk]:
         store = self._stores.get(tenant)
         return store.retrieve(query, k) if store else []
 
@@ -98,7 +101,9 @@ def hash_embed(text: str, dim: int = HASH_DIM) -> list[float]:
     return [v / norm for v in vec] if norm else vec
 
 
-def ollama_embed(host: str, model: str, timeout: float = 30.0) -> Callable[[str], list[float]]:
+def ollama_embed(
+    host: str, model: str, timeout: float = 30.0
+) -> Callable[[str], list[float]]:
     """A real embedding function, behind one env var.
 
     Returns a callable rather than taking the text directly so the client (and
@@ -242,9 +247,13 @@ class QdrantStore:
 
     def _payload(self, chunk: Chunk, tenant: str) -> dict:
         return {
-            "text": chunk.text, "tenant": tenant, "source": chunk.source,
-            "version": chunk.version, "ordinal": chunk.ordinal,
-            "start": chunk.start, "end": chunk.end,
+            "text": chunk.text,
+            "tenant": tenant,
+            "source": chunk.source,
+            "version": chunk.version,
+            "ordinal": chunk.ordinal,
+            "start": chunk.start,
+            "end": chunk.end,
         }
 
     def add(self, docs: list, tenant: str = DEFAULT_TENANT) -> int:
@@ -268,7 +277,9 @@ class QdrantStore:
         # built here: `list` is invariant, so a list[FieldCondition] is not a
         # list[Condition] to a type checker, and the error only appears on a
         # machine where the qdrant extra is installed.
-        must: list[Condition] = [FieldCondition(key="tenant", match=MatchValue(value=tenant))]
+        must: list[Condition] = [
+            FieldCondition(key="tenant", match=MatchValue(value=tenant))
+        ]
         if source is not None:
             must.append(FieldCondition(key="source", match=MatchValue(value=source)))
         return Filter(must=must)
@@ -284,7 +295,9 @@ class QdrantStore:
         if stale:
             from qdrant_client.models import PointIdsList
 
-            self.client.delete(self.collection, points_selector=PointIdsList(points=stale))
+            self.client.delete(
+                self.collection, points_selector=PointIdsList(points=stale)
+            )
 
     def delete(self, source: str, tenant: str = DEFAULT_TENANT) -> int:
         found = self.client.scroll(
@@ -304,13 +317,18 @@ class QdrantStore:
 
     def _chunk(self, payload: dict) -> Chunk:
         return Chunk(
-            text=payload["text"], source=payload.get("source", "inline"),
-            version=payload.get("version", ""), ordinal=payload.get("ordinal", 0),
-            start=payload.get("start", 0), end=payload.get("end", 0),
+            text=payload["text"],
+            source=payload.get("source", "inline"),
+            version=payload.get("version", ""),
+            ordinal=payload.get("ordinal", 0),
+            start=payload.get("start", 0),
+            end=payload.get("end", 0),
             tenant=payload.get("tenant", DEFAULT_TENANT),
         )
 
-    def search(self, query: str, k: int = 3, tenant: str = DEFAULT_TENANT) -> list[Chunk]:
+    def search(
+        self, query: str, k: int = 3, tenant: str = DEFAULT_TENANT
+    ) -> list[Chunk]:
         """Dense + sparse, fused by Qdrant, thresholded, optionally reranked.
 
         The tenant filter runs SERVER-SIDE — on both arms, because a filter
@@ -328,12 +346,16 @@ class QdrantStore:
             self.collection,
             prefetch=[
                 Prefetch(
-                    query=self.embed(query), using=DENSE,
-                    limit=candidates, filter=tenant_filter,
+                    query=self.embed(query),
+                    using=DENSE,
+                    limit=candidates,
+                    filter=tenant_filter,
                 ),
                 Prefetch(
-                    query=sparse_terms(query), using=SPARSE,
-                    limit=candidates, filter=tenant_filter,
+                    query=sparse_terms(query),
+                    using=SPARSE,
+                    limit=candidates,
+                    filter=tenant_filter,
                 ),
             ],
             query=FusionQuery(fusion=Fusion.RRF),
@@ -368,9 +390,7 @@ class QdrantStore:
         ranked eighth."""
         return k * 5 if self.rerank else k
 
-    def _admitted(
-        self, query: str, chunks: list[Chunk], tenant: str
-    ) -> list[Chunk]:
+    def _admitted(self, query: str, chunks: list[Chunk], tenant: str) -> list[Chunk]:
         """Which candidates are relevant enough to ground an answer in — asked of
         each arm about its own hits, in its own units.
 
@@ -625,7 +645,11 @@ def ollama_stream(
 
 
 def openai_generate(
-    prompt: str, *, model: str, base_url: str | None = None, timeout: float | None = None
+    prompt: str,
+    *,
+    model: str,
+    base_url: str | None = None,
+    timeout: float | None = None,
 ) -> str:
     """One completion from OpenAI (or anything speaking its wire format).
 
@@ -634,11 +658,17 @@ def openai_generate(
     there is no call site that could pass one in from a config file and no traceback
     that could print it.
     """
-    return joined(openai_stream(prompt, model=model, base_url=base_url, timeout=timeout))
+    return joined(
+        openai_stream(prompt, model=model, base_url=base_url, timeout=timeout)
+    )
 
 
 def openai_stream(
-    prompt: str, *, model: str, base_url: str | None = None, timeout: float | None = None
+    prompt: str,
+    *,
+    model: str,
+    base_url: str | None = None,
+    timeout: float | None = None,
 ) -> Iterator[str]:
     """The same completion as deltas.
 
@@ -680,9 +710,7 @@ def _report_openai_usage(block: Any) -> None:
         usage.report(tokens_in, tokens_out)
 
 
-def anthropic_generate(
-    prompt: str, *, model: str, timeout: float | None = None
-) -> str:
+def anthropic_generate(prompt: str, *, model: str, timeout: float | None = None) -> str:
     """One completion from Anthropic. Key from `ANTHROPIC_API_KEY`, same rule.
 
     Its own stream, joined — and joining the text blocks is what the buffered call
@@ -756,7 +784,9 @@ def _schema_of(spec: Any) -> dict:
     """A discovered tool's input schema. The v2 SDK models it as `input_schema`;
     the wire format and older clients spell it `inputSchema`. Accepting both
     costs one line and stops the planner losing its arguments to a rename."""
-    return getattr(spec, "input_schema", None) or getattr(spec, "inputSchema", None) or {}
+    return (
+        getattr(spec, "input_schema", None) or getattr(spec, "inputSchema", None) or {}
+    )
 
 
 def _hints_of(spec: Any) -> dict:

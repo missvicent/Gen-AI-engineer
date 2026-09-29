@@ -5,7 +5,6 @@ import time
 from contextvars import ContextVar
 
 import pytest
-
 from assistant import deadline
 from assistant.resilience import (
     ONCE,
@@ -46,8 +45,10 @@ class Broken:
 def test_a_transient_failure_is_retried_to_success():
     slept: list[float] = []
     fn = resilient(
-        Flaky(failures=2), Policy(attempts=3, base_delay=0.2, timeout=None),
-        sleep=slept.append, rng=lambda: 1.0,
+        Flaky(failures=2),
+        Policy(attempts=3, base_delay=0.2, timeout=None),
+        sleep=slept.append,
+        rng=lambda: 1.0,
     )
     assert fn() == "ok"
     assert slept == [0.2, 0.4], "exponential backoff between the three attempts"
@@ -55,7 +56,8 @@ def test_a_transient_failure_is_retried_to_success():
 
 def test_the_last_failure_propagates_when_attempts_run_out():
     fn = resilient(
-        Flaky(failures=99), Policy(attempts=3, base_delay=0, timeout=None),
+        Flaky(failures=99),
+        Policy(attempts=3, base_delay=0, timeout=None),
         sleep=lambda s: None,
     )
     with pytest.raises(ConnectionError):
@@ -65,8 +67,10 @@ def test_the_last_failure_propagates_when_attempts_run_out():
 def test_backoff_is_capped_and_jittered():
     slept: list[float] = []
     fn = resilient(
-        Flaky(failures=3), Policy(attempts=4, base_delay=1.0, max_delay=1.5, timeout=None),
-        sleep=slept.append, rng=lambda: 0.5,
+        Flaky(failures=3),
+        Policy(attempts=4, base_delay=1.0, max_delay=1.5, timeout=None),
+        sleep=slept.append,
+        rng=lambda: 0.5,
     )
     fn()
     # ceilings 1.0, 2.0->1.5(cap), 4.0->1.5(cap); jitter halves each
@@ -207,8 +211,10 @@ def test_backoff_does_not_sleep_past_the_deadline():
     with deadline.budget(0.1, clock=lambda: now["t"]):
         with pytest.raises(ConnectionError):
             resilient(
-                Flaky(failures=99), Policy(attempts=5, base_delay=1.0, timeout=None),
-                sleep=slept.append, rng=lambda: 1.0,
+                Flaky(failures=99),
+                Policy(attempts=5, base_delay=1.0, timeout=None),
+                sleep=slept.append,
+                rng=lambda: 1.0,
             )()
     assert slept == [], "a 1s backoff inside a 0.1s budget is never taken"
 

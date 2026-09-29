@@ -23,6 +23,7 @@ expand/squash scan (guardrails.py), the model-in-the-loop second opinion
 on. Keep it offline and deterministic so the fast tier (tests/test_service.py)
 stays green with no network.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -76,7 +77,9 @@ def build_reranker(settings: Settings, report: Callable[[str, str], None]):
     try:
         from fastembed.rerank.cross_encoder import TextCrossEncoder
     except ImportError:
-        report("rerank", f"{settings.rerank_model} needs fastembed, which is not installed")
+        report(
+            "rerank", f"{settings.rerank_model} needs fastembed, which is not installed"
+        )
         return None
 
     # A name fastembed does not recognise is the same class of problem as a
@@ -155,6 +158,7 @@ def build_assistant(settings: Settings | None = None) -> Assistant:
 
     if settings.qdrant_url:
         from assistant.adapters import QdrantStore, hash_embed
+
         # A real embedder if one is named, the hash vector otherwise, and the
         # fallback is REPORTED rather than silent: retrieval that quietly runs on
         # vocabulary overlap looks like retrieval right up until someone asks
@@ -181,7 +185,8 @@ def build_assistant(settings: Settings | None = None) -> Assistant:
                 min_score=settings.min_score,
                 rerank=build_reranker(settings, report),
             ),
-            InMemoryRag(), report,
+            InMemoryRag(),
+            report,
         )
     else:
         rag = InMemoryRag()
@@ -190,6 +195,7 @@ def build_assistant(settings: Settings | None = None) -> Assistant:
     # see tenancy.py for the recall leak that distinction closes.
     if settings.assistant_db:
         from assistant.sqlite_memory import SqliteMemory
+
         db = settings.assistant_db
         memory = TenantMemory(lambda subject: SqliteMemory(db, user=subject))
     else:
@@ -198,17 +204,20 @@ def build_assistant(settings: Settings | None = None) -> Assistant:
     registry = dict(REGISTRY)
     if settings.telegram_bot_token and "send_telegram" in registry:
         from assistant.connectors import telegram_sender
+
         registry["send_telegram"] = rewrap(
             registry["send_telegram"], telegram_sender(settings.telegram_bot_token)
         )
     if settings.news_feed_url and "read_news" in registry:
         from assistant.connectors import news_fetcher
+
         registry["read_news"] = rewrap(
             registry["read_news"], news_fetcher(settings.news_feed_url)
         )
     if settings.mcp_server:
         from assistant.adapters import mcp_tools
         from assistant.mcp_client import extend_assistant
+
         try:
             discovered, invoker = mcp_tools(settings.mcp_server)
             registry = extend_assistant(
@@ -241,7 +250,9 @@ def build_assistant(settings: Settings | None = None) -> Assistant:
             model_composer(chat.generate), report, policy
         )
         stream_compose: StreamComposer = fallback_stream(
-            model_stream_composer(chat.stream), report, settings.compose_timeout,
+            model_stream_composer(chat.stream),
+            report,
+            settings.compose_timeout,
         )
     else:
         compose = offline_compose
@@ -259,11 +270,17 @@ def build_assistant(settings: Settings | None = None) -> Assistant:
     store = settings.assistant_db or ":memory:"
 
     return Assistant(
-        settings=settings, rag=rag, memory=memory, base_registry=registry,
+        settings=settings,
+        rag=rag,
+        memory=memory,
+        base_registry=registry,
         rec=recorder(otlp_endpoint=settings.otlp_endpoint),
-        compose=compose, stream_compose=stream_compose,
+        compose=compose,
+        stream_compose=stream_compose,
         approvals=ApprovalStore(store, settings.approval_ttl_seconds),
-        idempotency=IdempotencyStore(store), outbox=Outbox(store),
+        idempotency=IdempotencyStore(store),
+        outbox=Outbox(store),
         audit_log=AuditLog(store),
-        degraded=degraded, screen=screen,
+        degraded=degraded,
+        screen=screen,
     )

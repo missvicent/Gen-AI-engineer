@@ -6,7 +6,6 @@ shows up as a number instead of a red test nobody trusts.
 """
 
 import pytest
-
 from assistant.memory import (
     DAY_SECONDS,
     AssistantMemory,
@@ -24,11 +23,21 @@ GUARDRAILS = ("never send email without approval",)
 @pytest.fixture
 def memory() -> AssistantMemory:
     store = AssistantMemory()
-    store.write("semantic", "I work in UTC-5 and prefer meetings after 10:00",
-                source="turn-3", now=NOW)
-    store.write("procedural", "retry the calendar tool once on a 429", source="run-12", now=NOW)
-    store.write("episodic", "the calendar tool failed when the event had no end time",
-                source="run-12", now=NOW)
+    store.write(
+        "semantic",
+        "I work in UTC-5 and prefer meetings after 10:00",
+        source="turn-3",
+        now=NOW,
+    )
+    store.write(
+        "procedural", "retry the calendar tool once on a 429", source="run-12", now=NOW
+    )
+    store.write(
+        "episodic",
+        "the calendar tool failed when the event had no end time",
+        source="run-12",
+        now=NOW,
+    )
     return store
 
 
@@ -59,7 +68,9 @@ def test_semantic_facts_expire_by_default(memory: AssistantMemory) -> None:
 def test_a_corrected_fact_replaces_the_stale_one(memory: AssistantMemory) -> None:
     stale = memory.write("semantic", "Dana is my manager", source="turn-4", now=NOW)
     memory.correct(stale, "Ravi is my manager", source="turn-91", now=NOW)
-    texts = [hit.text for hit in memory.recall("semantic", "who is my manager", now=NOW)]
+    texts = [
+        hit.text for hit in memory.recall("semantic", "who is my manager", now=NOW)
+    ]
     assert any("Ravi" in text for text in texts)
     assert not any("Dana" in text for text in texts)
 
@@ -85,31 +96,46 @@ def test_only_some_turns_are_worth_remembering(turn: str, expected: str | None) 
 
 def test_remember_skips_the_turns_that_are_not_worth_it() -> None:
     store = AssistantMemory()
-    assert store.remember("what's on my calendar tomorrow?", source="turn-1", now=NOW) is None
-    assert store.remember("I prefer meetings after 10:00", source="turn-2", now=NOW) is not None
+    assert (
+        store.remember("what's on my calendar tomorrow?", source="turn-1", now=NOW)
+        is None
+    )
+    assert (
+        store.remember("I prefer meetings after 10:00", source="turn-2", now=NOW)
+        is not None
+    )
     assert len(store.all()) == 1
 
 
 def test_the_context_never_exceeds_its_budget(memory: AssistantMemory) -> None:
-    context = context_for(memory, "when should we meet", guardrails=GUARDRAILS,
-                          budget_tokens=25, now=NOW)
+    context = context_for(
+        memory, "when should we meet", guardrails=GUARDRAILS, budget_tokens=25, now=NOW
+    )
     assert context.tokens <= 25
 
 
 def test_guardrails_are_pinned_and_survive_pressure(memory: AssistantMemory) -> None:
-    context = context_for(memory, "when should we meet", guardrails=GUARDRAILS,
-                          budget_tokens=20, now=NOW)
+    context = context_for(
+        memory, "when should we meet", guardrails=GUARDRAILS, budget_tokens=20, now=NOW
+    )
     assert "never send email without approval" in context.render()
 
 
 def test_pinning_more_than_the_budget_fails_loudly(memory: AssistantMemory) -> None:
     with pytest.raises(ValueError, match="budget"):
-        context_for(memory, "when should we meet", guardrails=GUARDRAILS * 5,
-                    budget_tokens=8, now=NOW)
+        context_for(
+            memory,
+            "when should we meet",
+            guardrails=GUARDRAILS * 5,
+            budget_tokens=8,
+            now=NOW,
+        )
 
 
 def test_a_line_that_does_not_fit_is_parked_whole(memory: AssistantMemory) -> None:
-    long_fact = memory.write("semantic", " ".join(["timezone"] * 40), source="turn-9", now=NOW)
+    long_fact = memory.write(
+        "semantic", " ".join(["timezone"] * 40), source="turn-9", now=NOW
+    )
     context = context_for(memory, "timezone", budget_tokens=30, now=NOW)
     assert long_fact in [line.id for line in context.parked]
     assert "timezone timezone timezone" not in context.render()
@@ -133,6 +159,8 @@ def test_expired_rows_stay_visible_to_the_audit(memory: AssistantMemory) -> None
 
 def test_assemble_is_injectable_for_a_real_tokenizer(memory: AssistantMemory) -> None:
     """The counter is a parameter, so production can count in real tokens."""
-    doubled = assemble("task", [], memory.all("semantic"), 200, count=lambda t: 2 * count_tokens(t))
+    doubled = assemble(
+        "task", [], memory.all("semantic"), 200, count=lambda t: 2 * count_tokens(t)
+    )
     plain = assemble("task", [], memory.all("semantic"), 200)
     assert doubled.tokens == 2 * plain.tokens

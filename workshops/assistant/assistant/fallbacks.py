@@ -7,6 +7,7 @@ with the degradation reported on /health so an operator can see it. Retry
 budgets differ by adapter: a vector search should fail fast (the standby is
 right there); a model completion is worth waiting for.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator

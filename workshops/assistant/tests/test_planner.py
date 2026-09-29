@@ -6,8 +6,15 @@ planner — which knew two tool names by heart — could never pick one. Every t
 here is really the same question asked from a different angle: can a tool that
 did not exist when this file was written be chosen, called, and refused?
 """
+
 from assistant.agent import Step, run
-from assistant.planner import DEFAULT_CHAT, arguments_for, choose, content_words, relevance
+from assistant.planner import (
+    DEFAULT_CHAT,
+    arguments_for,
+    choose,
+    content_words,
+    relevance,
+)
 from assistant.tools import REGISTRY, Tool, required_args_of, tool
 
 MCP_SPECS = [
@@ -90,8 +97,13 @@ def test_a_tool_whose_arguments_cannot_be_filled_is_never_proposed():
     """schedule_event needs a start time. Nothing in a sentence supplies one, so
     the deterministic planner declines rather than inventing an hour."""
     assert "start_iso" in REGISTRY["schedule_event"].required_args
-    assert arguments_for(REGISTRY["schedule_event"], "schedule a meeting tomorrow") is None
-    assert choose("schedule a meeting with the team tomorrow", dict(REGISTRY), set()) is None
+    assert (
+        arguments_for(REGISTRY["schedule_event"], "schedule a meeting tomorrow") is None
+    )
+    assert (
+        choose("schedule a meeting with the team tomorrow", dict(REGISTRY), set())
+        is None
+    )
 
 
 def test_only_the_goal_selects_a_tool_never_a_retrieved_document():
@@ -136,14 +148,17 @@ def test_required_args_are_read_off_the_signature_not_declared_by_hand():
 
 def test_content_words_drop_stopwords_and_fold_plurals():
     assert content_words("What are the refunds for these items?") == {
-        "refund", "item",
+        "refund",
+        "item",
     }
 
 
 def test_relevance_does_not_reward_a_verbose_description():
     terse = Tool("ping", lambda: None, False, "Ping the team with a message.")
     padded = Tool(
-        "ping_verbose", lambda: None, False,
+        "ping_verbose",
+        lambda: None,
+        False,
         "Ping the team with a message. " + " ".join(f"filler{i}" for i in range(50)),
     )
     words = content_words("ping the team with a message")
@@ -167,9 +182,7 @@ def test_the_whole_service_answers_using_a_discovered_tool():
         "fact": "Refunds are processed within five business days."
     }
 
-    assistant = build_assistant(
-        Settings(mcp_readonly_allowlist=("lookup_fact",))
-    )
+    assistant = build_assistant(Settings(mcp_readonly_allowlist=("lookup_fact",)))
     assistant.base_registry = extend_assistant(
         assistant.base_registry, [spec], fact, ("lookup_fact",)
     )
@@ -189,12 +202,14 @@ def test_the_same_discovered_tool_pauses_when_the_operator_never_reviewed_it():
     assistant = build_assistant(Settings())
     assistant.base_registry = extend_assistant(
         assistant.base_registry,
-        [{
-            "name": "lookup_fact",
-            "description": "Look up a company fact by topic. Use for policy questions.",
-            "required_args": ("topic",),
-            "read_only": True,  # the server insists
-        }],
+        [
+            {
+                "name": "lookup_fact",
+                "description": "Look up a company fact by topic. Use for policy questions.",
+                "required_args": ("topic",),
+                "read_only": True,  # the server insists
+            }
+        ],
         lambda name, args: {"fact": "Refunds are processed within five business days."},
     )
     answer = assistant.ask("look up the company fact for the refund window")

@@ -44,7 +44,9 @@ def test_a_supervisor_that_keeps_the_work_is_caught() -> None:
     def hoarding(job: Job, tier: str) -> Call:
         return Call(SUPERVISOR, tier, job.kind, job.in_tokens, job.out_tokens, job.id)
 
-    assert not delegated(delegate(JOBS, workers=dict.fromkeys(SKILLS.values(), hoarding)))
+    assert not delegated(
+        delegate(JOBS, workers=dict.fromkeys(SKILLS.values(), hoarding))
+    )
 
 
 def test_one_failing_worker_leaves_the_run_partial_not_dead() -> None:

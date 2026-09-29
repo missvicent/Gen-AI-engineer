@@ -26,6 +26,7 @@ another's.
 
 Reference: ../../after/src/assistant/idempotency.py.
 """
+
 from __future__ import annotations
 
 import sqlite3

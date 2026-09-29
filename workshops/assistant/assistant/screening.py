@@ -12,6 +12,7 @@ opinion (`guard.py`), it has to apply to every channel or it applies to none —
 and a filter that only covers the channel the user types into is the channel an
 attacker will not use.
 """
+
 from __future__ import annotations
 
 from dataclasses import replace
@@ -52,7 +53,9 @@ def screen_contexts(docs: list[str], screen: Screen = guardrails.screen) -> list
     return kept
 
 
-def screen_chunks(chunks: list[Chunk], screen: Screen = guardrails.screen) -> list[Chunk]:
+def screen_chunks(
+    chunks: list[Chunk], screen: Screen = guardrails.screen
+) -> list[Chunk]:
     """The same gate, over retrieved chunks, keeping their provenance.
 
     A redaction rewrites the text and nothing else: the source, version and

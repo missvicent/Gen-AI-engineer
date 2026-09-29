@@ -21,6 +21,7 @@ selectable. Writing docs for the planner is not decoration — it is wiring.
 fully specify, so a tool must declare which arguments it cannot do without.
 Derive them from the signature and the two cannot drift.
 """
+
 from __future__ import annotations
 
 import inspect

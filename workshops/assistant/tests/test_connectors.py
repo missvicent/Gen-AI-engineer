@@ -79,7 +79,8 @@ def test_the_telegram_sender_reports_network_failure_as_a_result(monkeypatch):
 
 def test_the_news_fetcher_returns_parsed_headlines(monkeypatch):
     monkeypatch.setattr(
-        connectors.urllib.request, "urlopen",
+        connectors.urllib.request,
+        "urlopen",
         lambda url, timeout=0: FakeResponse(RSS.encode()),
     )
     assert "shrinking" in news_fetcher("https://example.com/feed.xml")()
@@ -107,8 +108,10 @@ def test_a_flaky_feed_is_retried_because_a_read_costs_nothing_to_repeat(monkeypa
         return FakeResponse(RSS.encode())
 
     calls = counting_urlopen(monkeypatch, flaky)
-    fetcher = news_fetcher("https://example.com/f.xml",
-                           policy=Policy(attempts=3, base_delay=0, timeout=None))
+    fetcher = news_fetcher(
+        "https://example.com/f.xml",
+        policy=Policy(attempts=3, base_delay=0, timeout=None),
+    )
     assert "shrinking" in fetcher()
     assert len(calls) == 2, "the second attempt is what produced the answer"
 
@@ -117,6 +120,7 @@ def test_a_send_is_never_retried_because_a_timeout_is_not_a_no(monkeypatch):
     """The default policy for send_telegram is ONCE. A timeout tells you nothing
     about whether the Bot API delivered the message, so trying again is how one
     outage alert becomes three."""
+
     def always_fails(n):
         raise OSError("read timed out")
 
@@ -129,14 +133,16 @@ def test_a_send_is_never_retried_because_a_timeout_is_not_a_no(monkeypatch):
 def test_a_4xx_is_not_retried_even_when_retries_are_allowed(monkeypatch):
     """The Bot API has already given its final answer. Asking twice more
     produces the same rejection, more slowly, holding a connection each time."""
+
     def refused(n):
         raise urllib.error.HTTPError(
             "https://api.telegram.org", 400, "Bad Request", Message(), None
         )
 
     calls = counting_urlopen(monkeypatch, refused)
-    sender = telegram_sender("TOKEN123",
-                             policy=Policy(attempts=3, base_delay=0, timeout=None))
+    sender = telegram_sender(
+        "TOKEN123", policy=Policy(attempts=3, base_delay=0, timeout=None)
+    )
     assert "refused" in sender("team-chat", "hello")["error"]
     assert len(calls) == 1
 
@@ -150,8 +156,9 @@ def test_a_5xx_is_retried_because_later_is_a_real_possibility(monkeypatch):
         return FakeResponse(b'{"ok": true}')
 
     calls = counting_urlopen(monkeypatch, wobbly)
-    sender = telegram_sender("TOKEN123",
-                             policy=Policy(attempts=3, base_delay=0, timeout=None))
+    sender = telegram_sender(
+        "TOKEN123", policy=Policy(attempts=3, base_delay=0, timeout=None)
+    )
     assert sender("team-chat", "hello") == {"sent": True, "chat_id": "team-chat"}
     assert len(calls) == 2
 
@@ -168,11 +175,18 @@ def test_a_connector_never_raises_into_the_agent_loop(monkeypatch):
 def test_env_gated_connectors_swap_the_body_but_keep_the_gate():
     stubbed = build_assistant(Settings())
     real = build_assistant(
-        Settings(telegram_bot_token="TOKEN123", news_feed_url="https://example.com/f.xml")
+        Settings(
+            telegram_bot_token="TOKEN123", news_feed_url="https://example.com/f.xml"
+        )
     )
     # the bodies changed...
-    assert real.base_registry["send_telegram"].fn is not stubbed.base_registry["send_telegram"].fn
-    assert real.base_registry["read_news"].fn is not stubbed.base_registry["read_news"].fn
+    assert (
+        real.base_registry["send_telegram"].fn
+        is not stubbed.base_registry["send_telegram"].fn
+    )
+    assert (
+        real.base_registry["read_news"].fn is not stubbed.base_registry["read_news"].fn
+    )
     # ...but the policy did not: sends still need approval, reads still don't
     assert real.base_registry["send_telegram"].requires_approval is True
     assert real.base_registry["read_news"].requires_approval is False

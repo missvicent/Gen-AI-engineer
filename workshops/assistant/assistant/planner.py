@@ -31,6 +31,7 @@ Deterministic on purpose. Policy should not depend on model mood; composition
 
 Reference: ../../after/src/assistant/planner.py.
 """
+
 from __future__ import annotations
 
 import re
@@ -42,13 +43,15 @@ from assistant.tools import Tool
 
 # Words too common to carry intent. Matching on them would make every tool look
 # relevant to every goal, which is the same as having no threshold at all.
-STOPWORDS = frozenset("""
+STOPWORDS = frozenset(
+    """
 about after all also and any are can could does for from get give has have
 how into its just like make many may more most much must need not now
 only other our out over please should some such take than that the their
 them then there these they this those thing through use used uses using
 very want was way what when where which who why will with would you your
-""".split())
+""".split()
+)
 
 #: how many distinct content words a goal and a tool must share before the tool
 #: is considered a candidate at all. One shared word is a coincidence.

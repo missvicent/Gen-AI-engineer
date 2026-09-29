@@ -74,7 +74,9 @@ def as_score(value: object, metric: str) -> float:
             f"The Judge returned a NaN score for {metric}, which no threshold can catch"
         )
     if not 0 <= score <= 1:
-        raise ValueError(f"The Judge returned a score for {metric} outside 0..1: {score}")
+        raise ValueError(
+            f"The Judge returned a score for {metric} outside 0..1: {score}"
+        )
     return score
 
 

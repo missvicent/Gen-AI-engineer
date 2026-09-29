@@ -4,6 +4,7 @@ So that is what these test. Not the markdown — the four ways a claim can look
 finished without being finished: a missing file, a file with the wrong numbers
 in it, a stale date, and the tempting shortcut of counting the ADRs.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -12,7 +13,6 @@ import re
 from pathlib import Path
 
 import pytest
-
 from assistant.evidence import (
     CLAIMS,
     DIMENSIONS,
@@ -109,9 +109,9 @@ def test_the_security_claim_prints_more_than_a_bypass_count(tmp_path):
         MEASURED,
         safety={"attacks": 47, "controls": 11, "pii_leaks": 0, "controls_refused": 0},
     )
-    values = {
-        f.claim.id: f.values for f in collect(tmp_path, measured)
-    }["capstone-security"]
+    values = {f.claim.id: f.values for f in collect(tmp_path, measured)}[
+        "capstone-security"
+    ]
     assert values == {
         "redteam_bypasses": 0,
         "attacks": 47,
@@ -120,13 +120,15 @@ def test_the_security_claim_prints_more_than_a_bypass_count(tmp_path):
     }
 
 
-def test_the_offline_tier_prints_the_narrow_claim_rather_than_a_fabricated_one(tmp_path):
+def test_the_offline_tier_prints_the_narrow_claim_rather_than_a_fabricated_one(
+    tmp_path,
+):
     """`safety` is None off the offline lane: three inline probes, no controls. The
     row stays true by staying small — inventing a containment object for a proxy run
     would put a number on the page that no measurement supports."""
-    values = {
-        f.claim.id: f.values for f in collect(tmp_path, MEASURED)
-    }["capstone-security"]
+    values = {f.claim.id: f.values for f in collect(tmp_path, MEASURED)}[
+        "capstone-security"
+    ]
     assert values == {"redteam_bypasses": 0}
 
 
@@ -164,7 +166,9 @@ def test_every_unproven_row_prints_the_command_that_closes_it(tmp_path):
     page = render(collect(tmp_path, MEASURED), TODAY)
     for claim in CLAIMS:
         if claim.artifact is not None:
-            assert claim.command in page, f"{claim.id} left the reader with no way forward"
+            assert claim.command in page, (
+                f"{claim.id} left the reader with no way forward"
+            )
 
 
 def test_the_page_names_the_shortfall_in_its_first_lines(tmp_path):
@@ -179,7 +183,11 @@ def test_a_true_flag_renders_as_yes_not_as_one(tmp_path):
     passing check as "1" — a number, in a table of numbers, meaning nothing."""
     (tmp_path / "defect-lab.json").write_text(
         json.dumps(
-            {"defects": ["a", "b"], "green_against_fix": True, "measured_on": "2026-08-01"}
+            {
+                "defects": ["a", "b"],
+                "green_against_fix": True,
+                "measured_on": "2026-08-01",
+            }
         )
     )
     page = render(collect(tmp_path, MEASURED), TODAY)
@@ -247,7 +255,9 @@ def test_every_command_names_a_lesson_that_exists():
     course = _course_or_skip()
     for claim in CLAIMS:
         if claim.lesson:
-            assert (course / claim.lesson).is_dir(), f"{claim.id} cites a missing lesson"
+            assert (course / claim.lesson).is_dir(), (
+                f"{claim.id} cites a missing lesson"
+            )
 
 
 def test_every_command_names_a_target_that_runs():

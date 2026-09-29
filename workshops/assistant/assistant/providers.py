@@ -32,6 +32,7 @@ nobody measured.
 Keys are read by each SDK from the environment and never passed as arguments,
 so there is no call site holding one and no traceback that can print one.
 """
+
 from __future__ import annotations
 
 import os

@@ -43,12 +43,14 @@ you skipped cannot pass unnoticed.
 
 Reference: ../../after/defects/test_regressions.py — after you have been red.
 """
+
 from __future__ import annotations
 
 import re
 from concurrent.futures import ThreadPoolExecutor  # noqa: F401  (you will need it)
 
 from assistant import output_gate  # noqa: F401
+
 from defects import harness
 
 SSN = "123-45-6789"
@@ -88,7 +90,11 @@ def test_lockless_build_pins_the_base_images_by_tag():
 
 def test_the_lab_covers_every_seeded_defect():
     """A defect with no regression test is a defect waiting to come back."""
-    assert set(harness.DEFECTS) == {"unbound-approval", "pre-gate-stream", "lockless-build"}
+    assert set(harness.DEFECTS) == {
+        "unbound-approval",
+        "pre-gate-stream",
+        "lockless-build",
+    }
     source = open(__file__).read()
     for defect in harness.DEFECTS:
         assert re.search(rf"def test_{defect.replace('-', '_')}_", source), defect

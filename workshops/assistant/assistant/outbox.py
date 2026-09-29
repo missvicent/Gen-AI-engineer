@@ -27,6 +27,7 @@ irreversible action is a *worse* default than telling a human.
 
 Reference: ../../after/src/assistant/outbox.py.
 """
+
 from __future__ import annotations
 
 import sqlite3

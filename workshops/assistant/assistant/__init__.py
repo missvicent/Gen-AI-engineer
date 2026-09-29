@@ -1,4 +1,5 @@
 """The evolving personal assistant, built up one workshop at a time."""
+
 __all__ = [
     "rag",
     "evals",

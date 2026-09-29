@@ -6,11 +6,10 @@ of attributes that turn "the P99 is four seconds" from a complaint into a
 diagnosis. Everything here reads the in-memory exporter, so it runs in the fast
 tier and fails in CI rather than in a dashboard three weeks from now.
 """
+
 from __future__ import annotations
 
 import json
-
-from fastapi.testclient import TestClient
 
 from assistant import composers, observe
 from assistant.api import create_app
@@ -19,6 +18,7 @@ from assistant.observe import attr, children_of, descendants_of, one_trace
 from assistant.service import build_assistant
 from assistant.settings import Settings
 from assistant.usage import measure as measure_usage
+from fastapi.testclient import TestClient
 
 CORPUS = ["approved refunds are processed within five business days"]
 
@@ -57,8 +57,12 @@ def test_one_ask_is_one_trace_with_a_span_for_every_stage():
     root = pipeline_of(made)
     named = {s.name for s in descendants_of(spans, root)}
     assert {
-        observe.SCREEN_SPAN, observe.MEMORY_SPAN, observe.RETRIEVAL_SPAN,
-        "agent.run", observe.COMPOSE_SPAN, observe.OUTPUT_SPAN,
+        observe.SCREEN_SPAN,
+        observe.MEMORY_SPAN,
+        observe.RETRIEVAL_SPAN,
+        "agent.run",
+        observe.COMPOSE_SPAN,
+        observe.OUTPUT_SPAN,
     } <= named
 
 
@@ -96,10 +100,9 @@ def test_the_compose_span_carries_the_tokens_and_the_money():
 
     assert attr(compose, observe.TOKENS_IN) > 0
     assert attr(compose, observe.TOKENS_OUT) > 0
-    assert (
-        attr(compose, observe.TOKENS_TOTAL)
-        == attr(compose, observe.TOKENS_IN) + attr(compose, observe.TOKENS_OUT)
-    )
+    assert attr(compose, observe.TOKENS_TOTAL) == attr(
+        compose, observe.TOKENS_IN
+    ) + attr(compose, observe.TOKENS_OUT)
     # local is free, and the tokens are counted anyway — point the composer at a
     # paid API and the same span starts carrying a bill.
     assert attr(compose, observe.COST) == 0.0
@@ -164,8 +167,12 @@ def test_a_streamed_answer_produces_the_same_tree_as_a_batched_one():
     assert one_trace(spans)
     root = pipeline_of(made)
     named = {s.name for s in descendants_of(spans, root)}
-    assert {observe.SCREEN_SPAN, observe.RETRIEVAL_SPAN, observe.COMPOSE_SPAN,
-            observe.OUTPUT_SPAN} <= named
+    assert {
+        observe.SCREEN_SPAN,
+        observe.RETRIEVAL_SPAN,
+        observe.COMPOSE_SPAN,
+        observe.OUTPUT_SPAN,
+    } <= named
     compose = made.rec.named(observe.COMPOSE_SPAN)[0]
     assert attr(compose, observe.TOKENS_OUT) > 0
 
@@ -241,15 +248,20 @@ def test_the_request_id_is_one_value_the_span_the_header_and_the_body_agree_on()
     spans = app_assistant.rec.spans()
     root = [s for s in spans if s.name == observe.REQUEST_SPAN][0]
     assert attr(root, observe.REQUEST_ID) == rid
-    assert attr([s for s in spans if s.name == observe.PIPELINE_SPAN][0],
-                observe.REQUEST_ID) == rid
+    assert (
+        attr(
+            [s for s in spans if s.name == observe.PIPELINE_SPAN][0], observe.REQUEST_ID
+        )
+        == rid
+    )
 
 
 def test_a_caller_supplied_request_id_is_honoured_rather_than_replaced():
     c, app_assistant = served()
     app_assistant.rec.reset()
-    response = c.post("/ask", json={"question": "anything"},
-                      headers={"x-request-id": "ticket-4711"})
+    response = c.post(
+        "/ask", json={"question": "anything"}, headers={"x-request-id": "ticket-4711"}
+    )
 
     assert response.headers["x-request-id"] == "ticket-4711"
     root = [s for s in app_assistant.rec.spans() if s.name == observe.REQUEST_SPAN][0]
@@ -372,7 +384,9 @@ def test_a_truncated_stream_says_its_counts_are_an_estimate():
 
     span = compose_span_of(made)
     assert attr(span, observe.TOKENS_SOURCE) == "estimated"
-    assert attr(span, observe.TOKENS_OUT) == measure_usage("", done["answer"]).tokens_out
+    assert (
+        attr(span, observe.TOKENS_OUT) == measure_usage("", done["answer"]).tokens_out
+    )
 
 
 def test_a_truncated_stream_meters_what_escaped_and_not_twice_over():

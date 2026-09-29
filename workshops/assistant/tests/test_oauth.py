@@ -5,12 +5,12 @@ quietly wrong — the challenge derivation, the state comparison, sending the
 verifier at exchange rather than at authorize — are all testable in the fast
 tier. The network is exercised in `docker-compose.oauth.yml`, against Keycloak.
 """
+
 import base64
 import hashlib
 import urllib.parse
 
 import pytest
-
 from assistant import oauth
 
 ENDPOINTS = oauth.Endpoints(
@@ -22,15 +22,20 @@ ENDPOINTS = oauth.Endpoints(
 
 
 def query_of(url: str) -> dict[str, str]:
-    return {k: v[0] for k, v in urllib.parse.parse_qs(urllib.parse.urlparse(url).query).items()}
+    return {
+        k: v[0]
+        for k, v in urllib.parse.parse_qs(urllib.parse.urlparse(url).query).items()
+    }
 
 
 # --- PKCE ----------------------------------------------------------------------
 def test_the_challenge_is_the_sha256_of_the_verifier():
     pair = oauth.pkce_pair()
-    expected = base64.urlsafe_b64encode(
-        hashlib.sha256(pair.verifier.encode("ascii")).digest()
-    ).rstrip(b"=").decode()
+    expected = (
+        base64.urlsafe_b64encode(hashlib.sha256(pair.verifier.encode("ascii")).digest())
+        .rstrip(b"=")
+        .decode()
+    )
     assert pair.challenge == expected
     assert pair.method == "S256"
 
@@ -60,8 +65,12 @@ def test_plain_is_not_on_offer():
 def test_the_authorization_url_sends_the_challenge_and_never_the_verifier():
     pair = oauth.pkce_pair()
     url, _ = oauth.authorization_url(
-        ENDPOINTS, client_id="assistant-cli", redirect_uri="http://127.0.0.1:8765/callback",
-        scope="assistant:ask", audience="assistant", pkce=pair,
+        ENDPOINTS,
+        client_id="assistant-cli",
+        redirect_uri="http://127.0.0.1:8765/callback",
+        scope="assistant:ask",
+        audience="assistant",
+        pkce=pair,
     )
     params = query_of(url)
     assert params["code_challenge"] == pair.challenge
@@ -74,8 +83,12 @@ def test_the_authorization_url_asks_for_a_code_not_a_token():
     access token in a URL, which is to say in browser history and every proxy
     log between here and the issuer."""
     url, _ = oauth.authorization_url(
-        ENDPOINTS, client_id="assistant-cli", redirect_uri="http://127.0.0.1:8765/callback",
-        scope="assistant:ask", audience="assistant", pkce=oauth.pkce_pair(),
+        ENDPOINTS,
+        client_id="assistant-cli",
+        redirect_uri="http://127.0.0.1:8765/callback",
+        scope="assistant:ask",
+        audience="assistant",
+        pkce=oauth.pkce_pair(),
     )
     assert query_of(url)["response_type"] == "code"
 
@@ -84,30 +97,45 @@ def test_the_authorization_url_names_the_audience_it_wants_a_token_for():
     """The assistant rejects a token minted for another service, so the client
     has to ask for one minted for this one (RFC 8707)."""
     url, _ = oauth.authorization_url(
-        ENDPOINTS, client_id="assistant-cli", redirect_uri="http://127.0.0.1:8765/callback",
-        scope="assistant:ask", audience="assistant", pkce=oauth.pkce_pair(),
+        ENDPOINTS,
+        client_id="assistant-cli",
+        redirect_uri="http://127.0.0.1:8765/callback",
+        scope="assistant:ask",
+        audience="assistant",
+        pkce=oauth.pkce_pair(),
     )
     assert query_of(url)["audience"] == "assistant"
 
 
 def test_state_is_generated_when_the_caller_does_not_supply_one():
     _, first = oauth.authorization_url(
-        ENDPOINTS, client_id="c", redirect_uri="http://127.0.0.1:8765/callback",
-        scope="s", audience="assistant", pkce=oauth.pkce_pair(),
+        ENDPOINTS,
+        client_id="c",
+        redirect_uri="http://127.0.0.1:8765/callback",
+        scope="s",
+        audience="assistant",
+        pkce=oauth.pkce_pair(),
     )
     _, second = oauth.authorization_url(
-        ENDPOINTS, client_id="c", redirect_uri="http://127.0.0.1:8765/callback",
-        scope="s", audience="assistant", pkce=oauth.pkce_pair(),
+        ENDPOINTS,
+        client_id="c",
+        redirect_uri="http://127.0.0.1:8765/callback",
+        scope="s",
+        audience="assistant",
+        pkce=oauth.pkce_pair(),
     )
     assert first and second and first != second
 
 
 # --- the callback ---------------------------------------------------------------
 def test_a_callback_with_the_right_state_yields_the_code():
-    assert oauth.callback_params(
-        "http://127.0.0.1:8765/callback?code=abc123&state=s-t-a-t-e",
-        expected_state="s-t-a-t-e",
-    ) == "abc123"
+    assert (
+        oauth.callback_params(
+            "http://127.0.0.1:8765/callback?code=abc123&state=s-t-a-t-e",
+            expected_state="s-t-a-t-e",
+        )
+        == "abc123"
+    )
 
 
 def test_a_forged_callback_is_refused():
@@ -160,8 +188,11 @@ def test_the_exchange_proves_possession_of_the_verifier(monkeypatch):
 
     pair = oauth.pkce_pair()
     tokens = oauth.exchange_code(
-        ENDPOINTS, code="abc123", client_id="assistant-cli",
-        redirect_uri="http://127.0.0.1:8765/callback", pkce=pair,
+        ENDPOINTS,
+        code="abc123",
+        client_id="assistant-cli",
+        redirect_uri="http://127.0.0.1:8765/callback",
+        pkce=pair,
     )
     assert tokens["access_token"] == "tok"
     assert sent["url"] == ENDPOINTS.token

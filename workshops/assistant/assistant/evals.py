@@ -64,9 +64,13 @@ class SuiteResult:
 class Judge(Protocol):
     """The only component allowed to need a model."""
 
-    def faithfulness(self, question: str, answer: str, contexts: list[str]) -> float: ...
+    def faithfulness(
+        self, question: str, answer: str, contexts: list[str]
+    ) -> float: ...
 
-    def context_recall(self, question: str, contexts: list[str], reference: str) -> float: ...
+    def context_recall(
+        self, question: str, contexts: list[str], reference: str
+    ) -> float: ...
 
 
 AnswerFn = Callable[[str], tuple[str, list[str]]]
@@ -82,7 +86,9 @@ class KeywordJudge:
     def faithfulness(self, question: str, answer: str, contexts: list[str]) -> float:
         raise NotImplementedError
 
-    def context_recall(self, question: str, contexts: list[str], reference: str) -> float:
+    def context_recall(
+        self, question: str, contexts: list[str], reference: str
+    ) -> float:
         raise NotImplementedError
 
 
@@ -91,7 +97,9 @@ def is_abstention(answer: str) -> bool:
     raise NotImplementedError
 
 
-def score_row(row: GoldenRow, answer: str, contexts: list[str], judge: Judge) -> ScoredRow:
+def score_row(
+    row: GoldenRow, answer: str, contexts: list[str], judge: Judge
+) -> ScoredRow:
     """TODO 3: score one row — abstention rows never reach the judge (`judged=False`)."""
     raise NotImplementedError
 

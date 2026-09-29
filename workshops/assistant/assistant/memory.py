@@ -130,7 +130,9 @@ class AssistantMemory:
         """
         raise NotImplementedError("write() is yours to implement")
 
-    def remember(self, turn: str, *, source: str, now: float | None = None) -> str | None:
+    def remember(
+        self, turn: str, *, source: str, now: float | None = None
+    ) -> str | None:
         """Store a turn only if it is worth storing. Returns the id, or None.
 
         TODO: `classify` first; `None` means write nothing and return None.
@@ -149,7 +151,9 @@ class AssistantMemory:
         raise NotImplementedError("correct() is yours to implement")
 
     # ------------------------------------------------------------ recall path
-    def recall(self, kind: Kind, query: str, k: int = 3, now: float | None = None) -> list[Memory]:
+    def recall(
+        self, kind: Kind, query: str, k: int = 3, now: float | None = None
+    ) -> list[Memory]:
         """Top-k live memories of one kind, scored by `overlap`.
 
         TODO: skip expired rows, score the rest, drop zero-score rows, return k.

@@ -7,6 +7,7 @@ grounded prose from the same evidence, batch or streamed. Both consume the same
 `grounded_prompt`, and both cite the same `citations_for` ids, so swapping tiers
 never changes the shape of an answer.
 """
+
 from __future__ import annotations
 
 import re
@@ -113,6 +114,7 @@ def stop_at_refusal(chunks: Iterator[str]) -> Iterator[str]:
     if not said.strip():
         yield ABSTAIN
 
+
 #: (goal, retrieved contexts, tool state, recalled memories) -> answer.
 #: Memories are what the assistant already knew about THIS caller; contexts are
 #: what it just looked up. They are separate arguments because they are separate
@@ -167,7 +169,9 @@ def grounded_prompt(
     wrote them, which makes them useful, not trustworthy. They sit in their own
     block so the model can personalise an answer without mistaking a remembered
     preference for a cited source."""
-    evidence = [f"[c{i + 1}] {guardrails.spotlight(ctx)}" for i, ctx in enumerate(contexts)]
+    evidence = [
+        f"[c{i + 1}] {guardrails.spotlight(ctx)}" for i, ctx in enumerate(contexts)
+    ]
     evidence += [f"[tool] {guardrails.spotlight(str(out))}" for _, out in state]
     lines = "\n".join(f"- {item}" for item in evidence)
     known = ""

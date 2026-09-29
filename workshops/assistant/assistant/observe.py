@@ -28,6 +28,7 @@ are what let a dashboard that has never seen this repo read your trace.
 
 Reference: ../../after/src/assistant/observe.py.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -221,19 +222,28 @@ def trace_id() -> str:
 
 @contextmanager
 def stage(tracer: Tracer, name: str, **attributes: Any) -> Iterator[Span]:
-    """TODO 3: one stage of the pipeline as a child span, with its attributes.
-
-    Use `tracer.start_as_current_span(name)`, set every non-None attribute, and
-    yield the span. On an exception set ERROR status and **re-raise** — an
-    observability layer that swallows one has converted a visible failure into a
-    silent wrong answer. Otherwise set OK.
-
+    """One stage of the pipeline as a child span, with its attributes attached.
     Nesting is implicit: OTel keeps the current span in a context variable, so a
     stage opened inside another stage is its child without anyone passing a
     parent around. That is what lets `core.py` read as a pipeline rather than as
     a pipeline plus a tracing harness.
+
+    Excepting that the span is set to ERROR on an exception and re-raised.
+    An observability layer that swallows one has converted a visible failure into a
+    silent wrong answer, which is strictly worse than the crash it "prevented".
+
+    The span is set to OK after the block exits successfully.
     """
-    raise NotImplementedError
+    with tracer.start_as_current_span(name) as span:
+        for key, value in attributes.items():
+            if value is not None:
+                span.set_attribute(key, value)
+        try:
+            yield span
+        except Exception as exc:
+            span.set_status(Status(StatusCode.ERROR, str(exc)))
+            raise
+        span.set_status(Status(StatusCode.OK))
 
 
 def _apply(span: Span, attributes: dict[str, Any]) -> None:
@@ -399,7 +409,9 @@ def failed_spans(spans: Sequence[ReadableSpan]) -> list[ReadableSpan]:
     raise NotImplementedError
 
 
-def children_of(spans: Sequence[ReadableSpan], parent: ReadableSpan) -> list[ReadableSpan]:
+def children_of(
+    spans: Sequence[ReadableSpan], parent: ReadableSpan
+) -> list[ReadableSpan]:
     """TODO 13: the spans whose parent is this one — the tree, read back."""
     raise NotImplementedError
 

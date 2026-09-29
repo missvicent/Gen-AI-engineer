@@ -19,6 +19,7 @@ and the two backends need no changes to gain it.
 
 Reference: ../../after/src/assistant/tenancy.py.
 """
+
 from __future__ import annotations
 
 import threading

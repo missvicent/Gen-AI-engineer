@@ -45,7 +45,6 @@ import time
 
 import pytest
 import uvicorn
-
 from assistant import deadline
 from assistant.api import create_app
 from assistant.fallbacks import fallback_composer, fallback_stream
@@ -187,7 +186,9 @@ def served():
     port = listener.getsockname()[1]
 
     server = Server(uvicorn.Config(app, log_level="warning"))
-    thread = threading.Thread(target=lambda: server.run(sockets=[listener]), daemon=True)
+    thread = threading.Thread(
+        target=lambda: server.run(sockets=[listener]), daemon=True
+    )
     thread.start()
     until = time.monotonic() + 20
     while not server.started and thread.is_alive() and time.monotonic() < until:
