@@ -281,35 +281,13 @@ class Assistant:
         raise NotImplementedError
 
     def ingest(self, docs: list, subject: str = auth.ANONYMOUS) -> dict:
-        """TODO 3: screen documents BEFORE they land in the corpus.
+        """Screen documents BEFORE they land in the corpus. Return counts
 
-        Run each doc through `self.screen`. Keep the cleaned text of the ones
-        that pass and `self.rag.add(kept, tenant=subject)`; count the refusals
-        and record each as `("ingest.rejected", subject, reason,
-        result=audit_log.REJECTED)` in the audit log.
-
-        Record what was ACCEPTED too — one `("corpus.ingested", subject, ...,
-        result=audit_log.OK)` row naming the sources, when anything was added.
-        `forget()` below audits its delete and it would be easy to leave the add
-        unaudited by symmetry with "nothing was removed": the asymmetry is the
-        bug. A document that lands in the corpus changes every answer the tenant
-        gets from then on, and when one of those answers turns out to be wrong,
-        the question is who put the source there — unanswerable if only removals
-        were written down. A screen that did not object is not the same thing as
-        a document nobody has to account for.
-
-        Return `{"ingested": added, "rejected": n}` — the caller is entitled to
-        know that half its batch did not make it. Wrap the whole thing in an
-        `observe.stage(..., observe.INGEST_SPAN)` carrying SUBJECT, TENANT,
-        INGEST_ACCEPTED, INGEST_REJECTED and the CORPUS_VERSION of what was
-        kept: "how much of that batch was refused" is a question you will be
-        asked in an incident, and counting it afterwards is not possible.
-
-        A document arrives as prose OR as `{"text": ..., "source": ...}`, and
-        the source has to survive screening. It is what a citation points at and
-        what `forget(source)` deletes, so a redacted document that lost its name
-        is a document nobody can attribute or withdraw — which is a quiet
-        incentive to screen less. Pass the source through with the cleaned text.
+        A document may arrive as prose or as `{"text": ..., "source": ...}`. The
+        source is worth naming: it is what a citation points at, what
+        `forget(source)` deletes, and what makes a re-ingest an update instead of
+        a fourth copy. An unnamed document gets a source derived from its own
+        content, so even the lazy path deduplicates.
 
         Retrieval-time screening (`screen_contexts`) already drops a poisoned
         document on its way to the composer, so this looks redundant. It is not,
@@ -374,6 +352,7 @@ class Assistant:
                 observe.CORPUS_VERSION,
                 corpus_version(d["text"] if isinstance(d, dict) else d for d in docs),
             )
+            # ingested count chunks not documents: one long page is one chunk, not one document
             return {"ingested": added, "rejected": rejected}
 
     def forget(self, source: str, subject: str = auth.ANONYMOUS) -> dict:

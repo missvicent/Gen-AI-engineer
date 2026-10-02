@@ -1,0 +1,10 @@
+{"id": "ap-handbook.md#refunds", "text": "Approved refunds are processed within five business days. Refunds above 5,000 EUR require a second approver from the finance team before processing begins."}
+{"id": "ap-handbook.md#credit-notes", "text": "A credit note always references the invoice it offsets. Credit note INV-88231 was issued in March 2026 against invoice INV-88102, which was dated 19 February 2026."}
+{"id": "ap-handbook.md#late-fees", "text": "Suppliers may charge a late fee of 2 percent per month on overdue balances. Late fees are recorded against the original invoice, never as a separate invoice."}
+{"id": "runbook.md#err-4021", "text": "ERR-4021 is raised when the payment gateway times out after 30 seconds. The payment is not retried automatically; an operator must confirm the charge did not land before resubmitting."}
+{"id": "runbook.md#err-4090", "text": "ERR-4090 means the supplier bank rejected the transfer. The transfer is cancelled and the invoice returns to the approval queue."}
+{"id": "runbook.md#escalation", "text": "Gateway incidents lasting more than 15 minutes are escalated to the payments on-call engineer, who owns the decision to fail over to the backup provider."}
+{"id": "policy.md#approvals", "text": "Every payment above 10,000 EUR needs two approvers. Approvals are recorded in the audit log with the approver identity and a timestamp."}
+{"id": "policy.md#retention", "text": "Invoices and their audit trails are retained for ten years. Retention is enforced by the archive job, which runs nightly and writes to cold storage."}
+{"id": "policy.md#currency", "text": "Invoices are stored in the currency they were issued in. Reporting converts to EUR using the rate on the invoice date, not the payment date."}
+{"id": "onboarding.md#suppliers", "text": "A new supplier is onboarded once tax details and bank details are verified independently. Bank details changed after onboarding require a call-back to a known contact."}

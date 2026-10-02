@@ -80,12 +80,11 @@ class Budget:
         raise NotImplementedError
 
     def check(self) -> None:
-        """TODO 3: raise `Expired(reason)` if the request is over.
-
-        Called at seams, so the exception unwinds from a place where nothing is
-        half-done.
-        """
-        raise NotImplementedError
+        """Raise if the request is over. Called at seams, so the exception
+        unwinds from a place where nothing is half-done."""
+        reason = self.expired()
+        if reason:
+            raise Expired(self.expired())
 
 
 _BUDGET: ContextVar[Budget | None] = ContextVar("assistant_budget", default=None)
