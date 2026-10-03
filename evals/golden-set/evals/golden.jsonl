@@ -154,7 +154,7 @@
     "supporting_doc_ids": ["policy.md#currency"],
     "source": "policy.md",
     "labeled_by": "human",
-    "labeled_on": "2026-01-01"
+    "labeled_on": "2026-01-01",
 },
 {
     "id": "g-017",
@@ -164,7 +164,8 @@
     "supporting_doc_ids": ["ap-handbook.md", "runbook.md", "policy.md", "onboarding.md"],
     "source": "recurrend misunderstanding of the onboarding process",
     "labeled_by": "human",
-    "labeled_on": "2026-01-01"
+    "labeled_on": "2026-01-01",
+    "expects_abstention": true
 },
 {
     "id": "g-018",
@@ -174,7 +175,8 @@
     "supporting_doc_ids": ["ap-handbook.md", "runbook.md", "policy.md", "onboarding.md"],
     "source": "recurrend misunderstanding in reporting process",
     "labeled_by": "human",
-    "labeled_on": "2026-01-01"
+    "labeled_on": "2026-01-01",
+    "expects_abstention": true
 },
 {
     "id": "g-019",
@@ -184,5 +186,6 @@
     "supporting_doc_ids": ["ap-handbook.md", "runbook.md", "policy.md", "onboarding.md"],
     "source": "recurrend misunderstanding in supplier migration process",
     "labeled_by": "human",
-    "labeled_on": "2026-01-01"
+    "labeled_on": "2026-01-01",
+    "expects_abstention": true
 }
