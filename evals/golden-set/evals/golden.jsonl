@@ -188,4 +188,26 @@
     "labeled_by": "human",
     "labeled_on": "2026-01-01",
     "expects_abstention": true
+},
+{
+    "id": "g-020",
+    "slice": "unanswerable",
+    "question": "What is the onboarding process for new finance team members?"
+    "ground_truth": "Not in the documents.",
+    "supporting_doc_ids": ["ap-handbook.md", "runbook.md", "policy.md", "onboarding.md"],
+    "source": "recurrend misunderstanding in onboarding process",
+    "labeled_by": "human",
+    "labeled_on": "2026-01-01",
+    "expects_abstention": true
+},
+{
+    "id": "g-021",
+    "slice": "unanswerable",
+    "question": "What is the retention policy for invoices and their audit trails?"
+    "ground_truth": "Not in the documents.",
+    "supporting_doc_ids": ["ap-handbook.md", "runbook.md", "policy.md", "onboarding.md"],
+    "source": "recurrend misunderstanding in retention policy",
+    "labeled_by": "human",
+    "labeled_on": "2026-01-01",
+    "expects_abstention": true
 }
