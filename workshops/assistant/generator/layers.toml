@@ -1,0 +1,345 @@
+# What each workshop layer owns. build_layers.py is the only writer of layers/.
+# Students open layers/<id>/before and edit the files in `edit`. They never
+# see this file.
+
+shipped_complete = ["provenance.py", "release.py", "evidence.py"]
+
+[[layer]]
+id = "02-rag"
+title = "Workshop 2 — retrieval core"
+edit = ["rag.py"]
+supply = ["provenance.py"]
+first_failure = "test_semantic_search"
+command = "uv run pytest -q tests/test_rag.py::test_semantic_search"
+meaning = "`RagStore._rank` still raises NotImplementedError. The test asked the store a question and the ranking step is the one you have not written."
+hints = [
+  "Chunk.id is a UUIDv5 of tenant, source, and ordinal. The words in the chunk are not part of the id, so an edit keeps the id and changes the version.",
+  "_rank fuses two arms with RRF: add 1 / (k + rank) for each arm a chunk appears in. k is already named in the file.",
+]
+
+[[layer.slice]]
+source = "test_rag.py"
+
+[[layer.slice]]
+source = "test_retrieval.py"
+dest = "test_rag_chunks.py"
+keep = [
+  "test_a_chunk_id_is_derived_from_where_it_came_from_not_from_when",
+  "test_an_edit_keeps_the_id_and_changes_the_version",
+  "test_an_unnamed_document_still_deduplicates",
+  "test_a_long_document_becomes_several_chunks_that_know_their_offsets",
+]
+
+[[layer]]
+id = "03-evals"
+title = "Workshop 3 — eval suite"
+edit = ["evals.py"]
+first_failure = "test_the_suite_scores_every_slice"
+command = "uv run pytest -q tests/test_evals.py::test_the_suite_scores_every_slice"
+meaning = "`run_suite` still raises NotImplementedError. Scoring has not started, so the suite cannot report a slice yet."
+hints = [
+  "score_row fills faithfulness and context_recall. An abstention row is a string check: if the answer abstains, faithfulness is 1 and the judge is not called.",
+  "gate returns a list of problems. A missing required metric is a problem, the same as a score under the bar.",
+]
+
+[[layer.slice]]
+source = "test_evals.py"
+drop = [
+  "test_the_audit_trail_reads_back_as_a_trajectory",
+  "test_tool_choice_f1_flags_a_run_that_used_the_wrong_tool",
+  "test_goal_completion_reads_receipts_off_the_final_answer",
+  "test_a_gated_tool_never_fires_without_approval_even_when_the_brain_insists",
+  "test_containment_passes_an_approved_firing_and_names_nothing",
+]
+
+[[layer]]
+id = "04-agent"
+title = "Workshop 4 — agent loop"
+edit = ["tools.py", "agent.py"]
+first_failure = "test_readonly_tool_runs_and_finishes"
+command = "uv run pytest -q tests/test_agent.py::test_readonly_tool_runs_and_finishes"
+meaning = "The loop in `agent.run` still raises NotImplementedError. A read-only tool never gets to run."
+hints = [
+  "Register tools with tool(fn, *, requires_approval=...), not a decorator. The docstring is what a later planner matches on.",
+  "A gated tool appends a pending step and stops. It must not call the function until the same step comes back with approval.",
+]
+
+[[layer.slice]]
+source = "test_agent.py"
+
+[[layer.slice]]
+source = "test_evals.py"
+dest = "test_trajectory.py"
+keep = [
+  "test_the_audit_trail_reads_back_as_a_trajectory",
+  "test_tool_choice_f1_flags_a_run_that_used_the_wrong_tool",
+  "test_goal_completion_reads_receipts_off_the_final_answer",
+  "test_a_gated_tool_never_fires_without_approval_even_when_the_brain_insists",
+  "test_containment_passes_an_approved_firing_and_names_nothing",
+]
+
+[[layer]]
+id = "05-memory"
+title = "Workshop 5 — memory and crew"
+edit = ["memory.py", "tenancy.py", "crew.py"]
+supply = ["sqlite_memory.py"]
+first_failure = "test_a_remembered_fact_comes_back_with_its_source"
+command = "uv run pytest -q tests/test_memory.py"
+meaning = "The first result is often an ERROR in the `memory` fixture, not a failed assert. The fixture called `write()`, and `write()` is still the stub."
+hints = [
+  "remember(turn, *, source) returns None for a turn that is not worth keeping. A fact without a source is refused.",
+  "TenantMemory gives each subject the store the factory builds for that subject. Recall never reads another subject's store.",
+]
+
+[[layer.slice]]
+source = "test_memory.py"
+
+[[layer.slice]]
+source = "test_crew.py"
+dest = "test_n_crew.py"
+
+[[layer.slice]]
+source = "test_tenancy.py"
+dest = "test_n_tenancy.py"
+keep = [
+  "test_one_persons_memory_never_surfaces_in_anothers_recall",
+  "test_each_subject_recalls_their_own_answer_to_the_same_question",
+  "test_the_partition_is_in_the_database_not_only_in_the_process",
+  "test_all_crosses_tenants_because_it_is_the_operator_view",
+  "test_a_turn_not_worth_remembering_is_not_remembered",
+]
+
+[[layer]]
+id = "06-hardened"
+title = "Workshop 6 — hardened assistant"
+edit = ["guardrails.py", "screening.py", "guard.py"]
+first_failure = "test_screen_blocks_injection"
+command = "uv run pytest -q tests/test_guardrails.py::test_screen_blocks_injection"
+meaning = "`screen` still raises NotImplementedError. The injection string reached the scanner and the scanner is the stub."
+hints = [
+  "Expand first (base64, percent-encoding, HTML entities), then squash, then scan the expanded text. A decode adds evidence; it does not rewrite the original.",
+  "The model guard can add a block. It cannot clear one. If the regex already refused, do not call the model.",
+]
+
+[[layer.slice]]
+source = "test_guardrails.py"
+
+[[layer.slice]]
+source = "test_guard.py"
+dest = "test_z_guard.py"
+drop = [
+  "test_health_says_which_screen_is_live",
+  "test_the_guard_covers_every_untrusted_channel_not_just_the_question",
+  "test_only_an_exact_verdict_counts_as_one",
+  "test_a_block_verdict_is_recognised",
+  "test_a_dead_guard_model_leaves_the_deterministic_verdict_standing",
+]
+
+[[layer]]
+id = "07-mcp"
+title = "Workshop 7 — MCP discovery"
+edit = ["mcp_client.py", "planner.py"]
+supply = ["mcp_server.py"]
+first_failure = "test_discovered_tools_are_added_by_discovery_not_hardcoding"
+command = "uv run pytest -q tests/test_mcp.py::test_discovered_tools_are_added_by_discovery_not_hardcoding"
+meaning = "`extend_assistant` still raises NotImplementedError. The test handed you a tool list and the registry never grew."
+hints = [
+  "Discovery adds whatever the server listed. A name written into the client is the test's failure.",
+  "gate() is local policy. A server annotation can force approval. It cannot clear approval. Only the operator's allowlist can.",
+]
+
+[[layer.slice]]
+source = "test_mcp.py"
+
+[[layer.slice]]
+source = "test_planner.py"
+dest = "test_z_planner.py"
+drop = [
+  "test_the_whole_service_answers_using_a_discovered_tool",
+  "test_the_same_discovered_tool_pauses_when_the_operator_never_reviewed_it",
+]
+
+[[layer]]
+id = "08-trace"
+title = "Workshop 8 — trace, tokens, cache"
+edit = ["observe.py", "cache.py", "usage.py"]
+first_failure = "test_wrapping_the_registry_traces_every_tool_without_editing_any_tool"
+command = "uv run pytest -q tests/test_observe.py"
+meaning = "The first result is often an ERROR in the `rec` fixture. `observe.recorder()` is still the stub, so the fixture cannot build a tracer."
+hints = [
+  "recorder() returns an in-memory tracer. Wrap the registry once; do not edit each tool.",
+  "A cached answer is allowed only when is_cacheable says so. A pending approval and a gated tool are not cacheable.",
+]
+
+[[layer.slice]]
+source = "test_observe.py"
+
+[[layer.slice]]
+source = "test_cache.py"
+dest = "test_z_cache.py"
+
+[[layer]]
+id = "08-corpus"
+title = "Workshop 8 — corpus you can operate"
+edit = ["adapters.py"]
+first_failure = "test_reingesting_the_same_source_updates_instead_of_accumulating"
+command = "uv run pytest -q tests/test_corpus.py::test_reingesting_the_same_source_updates_instead_of_accumulating"
+meaning = "`InMemoryRag.add` still raises NotImplementedError. Re-ingest cannot update a document the store refuses to write."
+hints = [
+  "add() stores chunks by Chunk.id, so a second ingest of the same source overwrites. It does not append.",
+  "delete(source) removes every chunk of that source for that tenant and leaves every other tenant alone.",
+]
+
+[[layer.slice]]
+source = "test_guard.py"
+dest = "test_guard_model.py"
+keep = [
+  "test_only_an_exact_verdict_counts_as_one",
+  "test_a_block_verdict_is_recognised",
+  "test_a_dead_guard_model_leaves_the_deterministic_verdict_standing",
+]
+
+[[layer.slice]]
+source = "test_retrieval.py"
+dest = "test_corpus.py"
+keep = [
+  "test_the_sparse_arm_may_admit_on_identifiers_and_nothing_else",
+  "test_reingesting_the_same_source_updates_instead_of_accumulating",
+  "test_deleting_a_source_removes_every_chunk_of_it_and_nothing_else",
+  "test_delete_is_scoped_to_a_tenant",
+  "test_the_embedding_dimension_is_measured_from_the_embedder_not_declared",
+  "test_chunks_are_what_the_store_returns_and_text_is_still_reachable",
+  "test_the_collection_name_carries_the_embedder_and_its_width",
+  "test_a_model_name_qdrant_would_reject_is_sanitised_not_passed_through",
+  "test_the_hash_embedder_is_recorded_as_such_rather_than_left_blank",
+]
+
+[[layer]]
+id = "08-reliability"
+title = "Workshop 8 — deadline, retry, outbox"
+mode = "full"
+edit = ["deadline.py", "resilience.py", "idempotency.py", "outbox.py", "approvals.py"]
+first_failure = "test_a_bug_is_not_retried_three_times"
+command = "uv run pytest -q tests/test_resilience.py::test_a_bug_is_not_retried_three_times"
+meaning = "A TypeError was attempted more than once. `is_transient` has to say no for a bug. Timeouts and connection errors are the ones worth a second try."
+hints = [
+  "Timeouts, connection errors, and 429/503 are transient. A ValueError is a bug and must not be retried.",
+  "An approval is spent once. A replay of the same idempotency key returns the original result and does not grant a second run.",
+]
+
+[[layer.slice]]
+source = "test_resilience.py"
+
+[[layer.slice]]
+source = "test_reliability.py"
+dest = "test_z_reliability.py"
+
+[[layer.slice]]
+source = "test_disconnect.py"
+dest = "test_z_disconnect.py"
+
+[[layer]]
+id = "08-service"
+title = "Workshop 8 — the running service"
+mode = "full"
+edit = ["service.py", "api.py", "core.py", "composers.py", "connectors.py", "output_gate.py", "audit_log.py"]
+first_failure = "test_health_reports_the_offline_tier"
+command = "uv run pytest -q tests/test_service.py::test_health_reports_the_offline_tier"
+meaning = "The health route is the composition root. The first failure is the service not assembling the offline tier."
+hints = [
+  "build_assistant(Settings()) with no env vars is the offline tier: in-memory retrieval, no network. /health reports that tier.",
+  "The output gate holds back a still-forming token. A chunk that already left cannot be redacted.",
+]
+
+[[layer.slice]]
+source = "test_service.py"
+
+[[layer.slice]]
+source = "test_stream.py"
+dest = "test_z_stream.py"
+
+[[layer.slice]]
+source = "test_tracing.py"
+dest = "test_z_tracing.py"
+
+[[layer.slice]]
+source = "test_connectors.py"
+dest = "test_z_connectors.py"
+
+[[layer.slice]]
+source = "test_composers.py"
+dest = "test_z_composers.py"
+
+[[layer.slice]]
+source = "test_providers.py"
+dest = "test_z_providers.py"
+
+[[layer.slice]]
+source = "test_sqlite_memory.py"
+
+[[layer.slice]]
+source = "test_retrieval.py"
+dest = "test_z_retrieval.py"
+
+[[layer.slice]]
+source = "test_guard.py"
+dest = "test_service_guard.py"
+keep = [
+  "test_health_says_which_screen_is_live",
+  "test_the_guard_covers_every_untrusted_channel_not_just_the_question",
+]
+
+[[layer.slice]]
+source = "test_planner.py"
+dest = "test_service_planner.py"
+keep = [
+  "test_the_whole_service_answers_using_a_discovered_tool",
+  "test_the_same_discovered_tool_pauses_when_the_operator_never_reviewed_it",
+]
+
+[[layer]]
+id = "08-auth"
+title = "Workshop 8 — auth"
+mode = "full"
+edit = ["auth.py", "oauth.py"]
+first_failure = "test_without_a_key_source_the_zero_key_demo_path_stays_open"
+command = "uv run pytest -q tests/test_auth.py::test_without_a_key_source_the_zero_key_demo_path_stays_open"
+meaning = "With no key configured, the service is the local demo and this test is the one that fails first. The next failures are the tokens: a token with no `exp` must be rejected, and PyJWT will not do that unless you require the claim."
+hints = [
+  "require exp, sub, aud, and scope. verify_exp alone does not reject a token that omits exp.",
+  "Pin the algorithm from the key source. HS256 for a shared secret, RS256 for JWKS. Never read it from the token header.",
+]
+
+[[layer.slice]]
+source = "test_auth.py"
+
+[[layer.slice]]
+source = "test_oauth.py"
+
+[[layer.slice]]
+source = "test_security.py"
+
+[[layer]]
+id = "08-evidence"
+title = "Workshop 8 — the portfolio page"
+mode = "full"
+edit = ["report.py"]
+supply = ["release.py", "evidence.py"]
+first_failure = "test_build_portfolio_is_still_the_page"
+command = "uv run pytest -q tests/test_report.py::test_build_portfolio_is_still_the_page"
+meaning = "`build_portfolio` still raises NotImplementedError. The test asked for the page and the function is the stub. Counts on that page come from the meter, not from a number you type in."
+hints = [
+  "The page is a measurement of the run you just did. Counts come from the meter, not from a number typed into the template.",
+  "release.py and evidence.py are already finished. Your file is report.py.",
+]
+
+[[layer.slice]]
+source = "test_report.py"
+
+[[layer.slice]]
+source = "test_evidence.py"
+dest = "test_z_evidence.py"
+
+[[layer.slice]]
+source = "test_release.py"
+dest = "test_z_release.py"

@@ -1,0 +1,83 @@
+[project]
+name = "assistant-08-corpus-before"
+version = "0.1.0"
+requires-python = ">=3.11,<3.15"
+dependencies = [
+  "opentelemetry-sdk>=1.30,<2",
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.30,<1",
+  "pydantic>=2.7,<3",
+  # [crypto] pulls in `cryptography`, which RS256/JWKS verification needs. The
+  # OAuth lane is a real deployment path, not a doc — an image that cannot verify
+  # an issuer-signed token would make the claim false in the only place it counts.
+  "pyjwt[crypto]>=2.8,<3",
+  "pytest>=8,<9",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+reportMissingImports = "none"  # integration-only libs (qdrant/ollama/mcp/otlp) aren't installed in the fast tier
+
+[dependency-groups]
+# `providers` is in here for the type checker, not for the tests. `make check` used
+# to be a different command depending on which groups happened to be in `.venv`:
+# with the hosted SDKs absent, `reportMissingImports = "none"` makes `Anthropic` and
+# `OpenAI` resolve to Unknown, every call on them type-checks vacuously, and the lane
+# reports zero errors over two adapters it never looked at. Install the release
+# groups once — `make release-evidence` does — and the same command finds fourteen.
+#
+# A quality gate whose verdict depends on the state of a directory it does not
+# manage is not a gate, so the two SDKs the image ships are now in the tier that
+# checks the code. They cost seconds: both are thin wrappers over the `httpx` and
+# `pydantic` trees FastAPI already brings.
+dev = ["pyright>=1.1.380,<2", "ruff>=0.6,<1", "httpx>=0.27,<1", {include-group = "providers"}]
+# The real tier. Installed with `uv sync --group integration`; never by the fast gate.
+integration = [
+  "qdrant-client>=1.10,<2",
+  "ollama>=0.3,<1",
+  "mcp>=2.0.0,<3",   # SDK v2 (spec 2026-07-28). v1 code will NOT run on this.
+  "opentelemetry-exporter-otlp>=1.30,<2",
+]
+# The hosted brains `ASSISTANT_PROVIDER=openai|anthropic` selects, and they are in
+# the IMAGE — which is the whole point of the group existing.
+#
+# They used to be somewhere else or nowhere: `openai` sat in `release` below, which
+# is a host-only group, and `anthropic` was not declared at all. So the capstone
+# advertised three chat providers, `providers.build_chat` imported two SDKs the image
+# did not contain, and both paths died on `ModuleNotFoundError` at the first request
+# — an error that reads like a bug in the code rather than an absence in the build.
+# A provider the docs offer is a provider the shipped artifact has to be able to run.
+#
+# Cheap to carry, which is why packaging them beats narrowing the claim: both are
+# thin HTTP wrappers over `httpx` and `pydantic`, and FastAPI already brings both.
+providers = [
+  "openai>=1.60,<3",
+  "anthropic>=0.40,<1",
+]
+# `make release-evidence` only. Kept out of `integration` because these are the
+# two heaviest trees in the repo and neither belongs in the shipped image: the
+# reranker drags an ONNX runtime, and RAGAS wraps LangChain. The release lane
+# runs on a host, once, before publishing.
+#
+# The ragas/langchain-community pair is pinned identically in phase2-retrieval
+# and phase3-evals; `check-claims` fails the build if the three drift apart.
+release = [
+  "fastembed>=0.4,<1",
+  "ragas>=0.4,<0.5",
+  # Pulled in rather than restated: RAGAS needs `openai`, and a second pin for the
+  # same package is a second pin to forget when one moves.
+  {include-group = "providers"},
+  "langchain-community>=0.3.27,<0.4",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["src"]
+markers = ["integration: needs real services (Qdrant/Ollama/MCP/OTLP) — excluded from the fast tier"]

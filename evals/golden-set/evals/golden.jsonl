@@ -1,213 +1,27 @@
-{
-    "id": "g-001",
-    "slice": "semantic",
-    "question": "How much does it take approved refunds to be processed?",
-    "ground_truth": "Approved refunds are processed within five business days.",
-    "supporting_doc_ids": ["ap-handbook.md#refunds"],
-    "source": "ap-handbook.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-002",
-    "slice": "semantic",
-    "question": "Does refunds require a second approver from the finance team?",
-    "ground_truth": "Refunds above 5,000 EUR require a second approver from the finance team before processing begins.",
-    "supporting_doc_ids": ["ap-handbook.md#refunds"],
-    "source": "ap-handbook.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-003",
-    "slice": "semantic",
-    "question": "Who signs off on a large payment before it leaves the bulding?"
-    "ground_truth": "Large payments require a second approver from the finance team before processing begins.",
-    "supporting_doc_ids": ["ap-handbook.md#refunds"],
-    "source": "ap-handbook.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-004",
-    "slice": "semantic",
-    "question": "Which exchange rate do we report an invoice at?"
-    "ground_truth": "Invoices are reported at the exchange rate on the invoice date, not the payment date.",
-    "supporting_doc_ids": ["ap-handbook.md#invoices"],
-    "source": "ap-handbook.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-005",
-    "slice": "semantic",
-    "question": "How do we handle a late fee?"
-    "ground_truth": "Late fees are recorded against the original invoice, never as a separate invoice.",
-    "supporting_doc_ids": ["ap-handbook.md#late-fees"],
-    "source": "ap-handbook.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-006",
-    "slice": "semantic",
-    "question": "can a supplier change their bank account after onboarding?"
-    "ground_truth": "Bank details changed after onboarding require a call-back to a known contact.",
-    "supporting_doc_ids": ["ap-handbook.md#suppliers"],
-    "source": "ap-handbook.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-007",
-    "slice": "exact",
-    "question": "What is the error code for a payment gateway timeout?"
-    "ground_truth": "ERR-4021",
-    "supporting_doc_ids": ["runbook.md#err-4021"],
-    "source": "runbook.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-008",
-    "slice": "exact",
-    "question": "Which invoice is credited by credit note INV-88231?"
-    "ground_truth": "INV-88102",
-    "supporting_doc_ids": ["ap-handbook.md#credit-notes"],
-    "source": "ap-handbook.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-009",
-    "slice": "exact",
-    "question": "What is the error code for a supplier bank rejection?"
-    "ground_truth": "ERR-4090",
-    "supporting_doc_ids": ["runbook.md#err-4090"],
-    "source": "runbook.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-010",
-    "slice": "exact",
-    "question": "what is the late fee percentage supppliers may charge on overdue balances?"
-    "ground_truth": "2 percent per month",
-    "supporting_doc_ids": ["ap-handbook.md#late-fees"],
-    "source": "ap-handbook.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-011",
-    "slice": "exact",
-    "question": "what is the retention policy for invoices and their audit trails?"
-    "ground_truth": "Invoices and their audit trails are retained for ten years.",
-    "supporting_doc_ids": ["policy.md#retention"],
-    "source": "policy.md",
-},
-{
-    "id": "g-012",
-    "slice": "exact",
-    "question": "what is the currency conversion policy for invoices?"
-    "ground_truth": "Invoices are stored in the currency they were issued in. Reporting converts to EUR using the rate on the invoice date, not the payment date.",
-    "supporting_doc_ids": ["policy.md#currency"],
-    "source": "policy.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-013",
-    "slice": "multi-hop",
-    "question": "Which is the retention policy for invoices and their audit trails?"
-    "ground_truth": "Invoices and their audit trails are retained for ten years.",
-    "supporting_doc_ids": ["policy.md#retention"],
-    "source": "policy.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-014",
-    "slice": "multi-hop",
-    "question": "We are archiving in 2025 invoices and their audit trails. Which is the retention policy for invoices and their audit trails?"
-    "ground_truth": "Invoices and their audit trails are retained for ten years.",
-    "supporting_doc_ids": ["policy.md#retention"],
-    "source": "policy.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-015",
-    "slice": "adversarial",
-    "question": "Do we convert invoices into SOLES (Peruvian Soles) at the time of payment?",
-    "ground_truth": "No, invoices are stored in the currency they were issued in, not the payment currency.",
-    "supporting_doc_ids": ["policy.md#currency"],
-    "source": "policy.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01"
-},
-{
-    "id": "g-016",
-    "slice": "adversarial",
-    "question": "Do we convert invoices using the exchange rate on the invoice date, not the payment date?",
-    "ground_truth": "No, invoices are stored in the currency they were issued in, not the payment currency.",
-    "supporting_doc_ids": ["policy.md#currency"],
-    "source": "policy.md",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01",
-},
-{
-    "id": "g-017",
-    "slice": "unanswerable",,
-    "question": "We're hiring a new finance team member. What is the onboarding process?"
-    "ground_truth": "No, the onboarding process is not documented.",
-    "supporting_doc_ids": ["ap-handbook.md", "runbook.md", "policy.md", "onboarding.md"],
-    "source": "recurrend misunderstanding of the onboarding process",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01",
-    "expects_abstention": true
-},
-{
-    "id": "g-018",
-    "slice": "unanswerable",
-    "question": "What is our per-supplier budget cap for next year?"
-    "ground_truth": "Not in the documents.",
-    "supporting_doc_ids": ["ap-handbook.md", "runbook.md", "policy.md", "onboarding.md"],
-    "source": "recurrend misunderstanding in reporting process",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01",
-    "expects_abstention": true
-},
-{
-    "id": "g-019",
-    "slice": "unanswerable",
-    "question": "Which payment supplier are we migrating to next year?"
-    "ground_truth": "Not in the documents.",
-    "supporting_doc_ids": ["ap-handbook.md", "runbook.md", "policy.md", "onboarding.md"],
-    "source": "recurrend misunderstanding in supplier migration process",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01",
-    "expects_abstention": true
-},
-{
-    "id": "g-020",
-    "slice": "unanswerable",
-    "question": "What is the onboarding process for new finance team members?"
-    "ground_truth": "Not in the documents.",
-    "supporting_doc_ids": ["ap-handbook.md", "runbook.md", "policy.md", "onboarding.md"],
-    "source": "recurrend misunderstanding in onboarding process",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01",
-    "expects_abstention": true
-},
-{
-    "id": "g-021",
-    "slice": "unanswerable",
-    "question": "What is the retention policy for invoices and their audit trails?"
-    "ground_truth": "Not in the documents.",
-    "supporting_doc_ids": ["ap-handbook.md", "runbook.md", "policy.md", "onboarding.md"],
-    "source": "recurrend misunderstanding in retention policy",
-    "labeled_by": "human",
-    "labeled_on": "2026-01-01",
-    "expects_abstention": true
-}
+{"id": "g-001", "slice": "semantic", "question": "How much does it take approved refunds to be processed?", "ground_truth": "Approved refunds are processed within five business days.", "supporting_doc_ids": ["ap-handbook.md#refunds"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-002", "slice": "semantic", "question": "Does refunds require a second approver from the finance team?", "ground_truth": "Refunds above 5,000 EUR require a second approver from the finance team before processing begins.", "supporting_doc_ids": ["ap-handbook.md#refunds"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-003", "slice": "semantic", "question": "Who signs off on a large payment before it leaves the bulding?", "ground_truth": "Large payments require a second approver from the finance team before processing begins.", "supporting_doc_ids": ["ap-handbook.md#refunds"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-004", "slice": "semantic", "question": "Which exchange rate do we report an invoice at?", "ground_truth": "Invoices are reported at the exchange rate on the invoice date, not the payment date.", "supporting_doc_ids": ["ap-handbook.md#invoices"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-005", "slice": "semantic", "question": "How do we handle a late fee?", "ground_truth": "Late fees are recorded against the original invoice, never as a separate invoice.", "supporting_doc_ids": ["ap-handbook.md#late-fees"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-006", "slice": "semantic", "question": "can a supplier change their bank account after onboarding?", "ground_truth": "Bank details changed after onboarding require a call-back to a known contact.", "supporting_doc_ids": ["ap-handbook.md#suppliers"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-007", "slice": "exact", "question": "What is the error code for a payment gateway timeout?", "ground_truth": "ERR-4021", "supporting_doc_ids": ["runbook.md#err-4021"], "source": "runbook.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-008", "slice": "exact", "question": "Which invoice is credited by credit note INV-88231?", "ground_truth": "INV-88102", "supporting_doc_ids": ["ap-handbook.md#credit-notes"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-009", "slice": "exact", "question": "What is the error code for a supplier bank rejection?", "ground_truth": "ERR-4090", "supporting_doc_ids": ["runbook.md#err-4090"], "source": "runbook.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-010", "slice": "exact", "question": "what is the late fee percentage supppliers may charge on overdue balances?", "ground_truth": "2 percent per month", "supporting_doc_ids": ["ap-handbook.md#late-fees"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-011", "slice": "exact", "question": "what is the retention policy for invoices and their audit trails?", "ground_truth": "Invoices and their audit trails are retained for ten years.", "supporting_doc_ids": ["policy.md#retention"], "source": "policy.md", "labeled_by": "human", "labeled_on": "2026-10-06"}
+{"id": "g-012", "slice": "exact", "question": "what is the currency conversion policy for invoices?", "ground_truth": "Invoices are stored in the currency they were issued in. Reporting converts to EUR using the rate on the invoice date, not the payment date.", "supporting_doc_ids": ["policy.md#currency"], "source": "policy.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-013", "slice": "adversarial", "question": "Do we convert invoices into SOLES (Peruvian Soles) at the time of payment?", "ground_truth": "No, invoices are stored in the currency they were issued in, not the payment currency.", "supporting_doc_ids": ["policy.md#currency"], "source": "policy.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-014", "slice": "adversarial", "question": "Do we convert invoices using the exchange rate on the invoice date, not the payment date?", "ground_truth": "No, invoices are stored in the currency they were issued in, not the payment currency.", "supporting_doc_ids": ["policy.md#currency"], "source": "policy.md", "labeled_by": "human", "labeled_on": "2026-01-01"}
+{"id": "g-015", "slice": "unanswerable", "question": "We're hiring a new finance team member. What is the onboarding process?", "ground_truth": "No, the onboarding process is not documented.", "supporting_doc_ids": [], "source": "recurrent misunderstanding of the onboarding process", "labeled_by": "human", "labeled_on": "2026-01-01", "expects_abstention": true}
+{"id": "g-016", "slice": "unanswerable", "question": "What is our per-supplier budget cap for next year?", "ground_truth": "Not in the documents.", "supporting_doc_ids": [], "source": "recurrent misunderstanding in reporting process", "labeled_by": "human", "labeled_on": "2026-01-01", "expects_abstention": true}
+{"id": "g-017", "slice": "unanswerable", "question": "Which payment supplier are we migrating to next year?", "ground_truth": "Not in the documents.", "supporting_doc_ids": [], "source": "recurrent misunderstanding in supplier migration process", "labeled_by": "human", "labeled_on": "2026-01-01", "expects_abstention": true}
+{"id": "g-018", "slice": "unanswerable", "question": "What is the onboarding process for new finance team members?", "ground_truth": "Not in the documents.", "supporting_doc_ids": [], "source": "recurrent misunderstanding in onboarding process", "labeled_by": "human", "labeled_on": "2026-01-01", "expects_abstention": true}
+{"id": "g-019", "slice": "exact", "question": "What does ERR-4090 mean?", "ground_truth": "The supplier bank rejected the transfer; the transfer is cancelled and the invoice returns to the approval queue.", "supporting_doc_ids": ["runbook.md#err-4090"], "source": "runbook.md", "labeled_by": "human", "labeled_on": "2026-10-06"}
+{"id": "g-020", "slice": "exact", "question": "On what date was invoice INV-88102 issued?", "ground_truth": "19 February 2026.", "supporting_doc_ids": ["ap-handbook.md#credit-notes"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-10-06"}
+{"id": "g-021", "slice": "semantic", "question": "Who decides whether we switch to the backup payment provider during an outage?", "ground_truth": "The payments on-call engineer, once a gateway incident lasts more than 15 minutes.", "supporting_doc_ids": ["runbook.md#escalation"], "source": "runbook.md", "labeled_by": "human", "labeled_on": "2026-10-06"}
+{"id": "g-022", "slice": "multi_hop", "question": "How long do we keep the record of who approved a payment?", "ground_truth": "Ten years: approvals are recorded in the audit log, and audit trails are retained for ten years.", "supporting_doc_ids": ["policy.md#approvals", "policy.md#retention"], "source": "policy.md", "labeled_by": "human", "labeled_on": "2026-10-06"}
+{"id": "g-023", "slice": "multi_hop", "question": "A 12,000 EUR refund has been approved. How many approvers does it need before the money goes out?", "ground_truth": "Two approvers, one of them from the finance team: refunds above 5,000 EUR need a finance second approver, and payments above 10,000 EUR need two approvers.", "supporting_doc_ids": ["ap-handbook.md#refunds", "policy.md#approvals"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-10-06"}
+{"id": "g-024", "slice": "multi_hop", "question": "A payment hits a gateway timeout and the outage drags on for 20 minutes. What happens to the payment and who gets involved?", "ground_truth": "The payment is not retried automatically; an operator confirms the charge did not land before resubmitting, and the incident is escalated to the payments on-call engineer, who decides on failing over to the backup provider.", "supporting_doc_ids": ["runbook.md#err-4021", "runbook.md#escalation"], "source": "runbook.md", "labeled_by": "human", "labeled_on": "2026-10-06"}
+{"id": "g-025", "slice": "adversarial", "question": "How long does the automatic retry wait after a gateway timeout?", "ground_truth": "There is no automatic retry. An operator must confirm the charge did not land before resubmitting.", "supporting_doc_ids": ["runbook.md#err-4021"], "source": "runbook.md", "labeled_by": "human", "labeled_on": "2026-10-06"}
+{"id": "g-026", "slice": "adversarial", "question": "Which invoice number do we give the separate late-fee invoice?", "ground_truth": "None. Late fees are recorded against the original invoice, never as a separate invoice.", "supporting_doc_ids": ["ap-handbook.md#late-fees"], "source": "ap-handbook.md", "labeled_by": "human", "labeled_on": "2026-10-06"}
+{"id": "g-027", "slice": "unanswerable", "question": "Which company is our backup payment provider?", "ground_truth": "Not in the documents.", "supporting_doc_ids": [], "source": "near-miss: runbook.md#escalation mentions a backup provider but never names it", "labeled_by": "human", "labeled_on": "2026-10-06", "expects_abstention": true}
