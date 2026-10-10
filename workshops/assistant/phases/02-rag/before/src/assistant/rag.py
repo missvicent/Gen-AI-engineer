@@ -166,31 +166,53 @@ def as_chunks(docs: Iterable[str | dict | Chunk], tenant: str = "local") -> list
     or chunks somebody already cut. Strings still work — this is the same
     `add(["..."])` the earlier workshops call — they simply arrive with a
     content-derived source instead of an anonymous integer id."""
+    if isinstance(docs, (str, dict)):
+        raise TypeError(f"pass a list of documents, not a {type(docs).__name__}")
     out: list[Chunk] = []
     for i, doc in enumerate(docs):
         if isinstance(doc, Chunk):
+            _check_chunk(i, doc)
             out.append(replace(doc, tenant=tenant))
         elif isinstance(doc, dict):
-            source = doc.get("source")
-            if not isinstance(doc.get("text"), str):
-                raise ValueError(f"doc {i}: missing 'text'")
-            if not isinstance(source, str) or not source.strip():
-                raise ValueError(f"doc {i}: 'source' is not a string")
-            source = doc.get("source")
-            out.extend(chunk_document(_check(i, str(doc["text"])), source, tenant=tenant))
+            _check_doc(i, doc)
+            _check_text(i, doc["text"])
+            out.extend(chunk_document(doc["text"], doc["source"], tenant=tenant))
         elif isinstance(doc, str):
-            out.extend(chunk_document(_check(i, doc), tenant=tenant))
+            _check_text(i, doc)
+            out.extend(chunk_document(doc, tenant=tenant))
         else:
             raise TypeError(f"Document {i} is of unknown type: {type(doc).__name__}")
     return out
 
 
-def _check(i: int, text: str) -> str:
-    if not text.strip() or not text:
+def _check_text(i: int, text: str) -> str:
+    if not isinstance(text, str) or not text.strip():
         raise ValueError(f"doc {i}: missing 'text'")
     if len(text) > MAX_DOC_CHARS:
         raise ValueError(f"Document {i} is too long: {len(text)} characters")
     return text
+
+
+def _check_doc(i: int, doc: dict) -> None:
+    text, source = doc.get("text"), doc.get("source")
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError(f"doc {i}: missing 'text'")
+    if not isinstance(source, str) or not source.strip():
+        raise ValueError(f"doc {i}: 'source' is not a string")
+
+
+def _check_chunk(i: int, doc: Chunk) -> None:
+    text, source, version = doc.text, doc.source, doc.version
+    if not text.strip():
+        raise ValueError(f"doc {i}: missing 'text'")
+    if source == "inline":
+        raise ValueError(f"Document {i} is inline: {source}")
+    if not source.strip():
+        raise ValueError(f"Document {i} has no source: {source}")
+    if version == "":
+        raise ValueError(f"Document {i} has no version: {version}")
+    if len(text) > CHUNK_CHARS:
+        raise ValueError(f"Document {i} is too long: {len(text)} characters")
 
 
 def texts(chunks: Sequence[Chunk]) -> list[str]:
