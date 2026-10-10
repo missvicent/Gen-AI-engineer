@@ -172,15 +172,22 @@ def as_chunks(docs: Iterable[str | dict | Chunk], tenant: str = "local") -> list
             out.append(replace(doc, tenant=tenant))
         elif isinstance(doc, dict):
             source = doc.get("source")
+            if not isinstance(doc.get("text"), str):
+                raise ValueError(f"doc {i}: missing 'text'")
+            if not isinstance(source, str) or not source.strip():
+                raise ValueError(f"doc {i}: 'source' is not a string")
+            source = doc.get("source")
             out.extend(chunk_document(_check(i, str(doc["text"])), source, tenant=tenant))
         elif isinstance(doc, str):
             out.extend(chunk_document(_check(i, doc), tenant=tenant))
         else:
-            raise ValueError(f"Document {i} is of unknown type: {type(doc)}")
+            raise TypeError(f"Document {i} is of unknown type: {type(doc).__name__}")
     return out
 
 
 def _check(i: int, text: str) -> str:
+    if not text.strip() or not text:
+        raise ValueError(f"doc {i}: missing 'text'")
     if len(text) > MAX_DOC_CHARS:
         raise ValueError(f"Document {i} is too long: {len(text)} characters")
     return text
@@ -196,7 +203,7 @@ class RagStore:
         self._reindex()
         self.add(docs, tenant)
 
-    def add(self, docs: Iterable[str | dict | Chunk], tenant: str = "local") -> dict:
+    def add(self, docs: Iterable[str | dict | Chunk], tenant: str = "local") -> dict[str, int]:
         old = self.chunks
         all_new = as_chunks(docs, tenant=tenant)
         unchanged = {c.doc_key for c in all_new if (o := old.get(c.id)) and o.version == c.version}
@@ -217,13 +224,13 @@ class RagStore:
 
     def _reindex(self) -> None:
         self.order = list(self.chunks.values())
-        self.docs = texts(self.chunks.values())
+        self.docs = texts(self.order)
         self.toks = [d.lower().split() for d in self.docs]
         self.df: Counter[str] = Counter()
         for t in self.toks:
             self.df.update(set(t))
-        self.n = max(1, len(self.docs))
-        self.avg = sum(len(t) for t in self.toks) / self.n
+        self.n = len(self.docs)
+        self.avg = sum(len(t) for t in self.toks) / max(1, self.n)
 
     def _bm25(self, q: list[str]) -> list[int]:
         out = []
