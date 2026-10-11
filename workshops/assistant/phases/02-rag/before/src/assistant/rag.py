@@ -185,34 +185,31 @@ def as_chunks(docs: Iterable[str | dict | Chunk], tenant: str = "local") -> list
     return out
 
 
-def _check_text(i: int, text: str) -> str:
+def _check_text(i: int, text: str) -> None:
     if not isinstance(text, str) or not text.strip():
         raise ValueError(f"doc {i}: missing 'text'")
     if len(text) > MAX_DOC_CHARS:
-        raise ValueError(f"Document {i} is too long: {len(text)} characters")
-    return text
+        raise ValueError(f"doc {i}: {len(text)} chars, max {MAX_DOC_CHARS}")
 
 
 def _check_doc(i: int, doc: dict) -> None:
     text, source = doc.get("text"), doc.get("source")
-    if not isinstance(text, str) or not text.strip():
-        raise ValueError(f"doc {i}: missing 'text'")
+    if not isinstance(text, str):
+        raise ValueError(f"doc {i}: 'text' must be a string")
     if not isinstance(source, str) or not source.strip():
-        raise ValueError(f"doc {i}: 'source' is not a string")
+        raise ValueError(f"doc {i}: missing or blank 'source'")
 
 
 def _check_chunk(i: int, doc: Chunk) -> None:
     text, source, version = doc.text, doc.source, doc.version
     if not text.strip():
-        raise ValueError(f"doc {i}: missing 'text'")
-    if source == "inline":
-        raise ValueError(f"Document {i} is inline: {source}")
-    if not source.strip():
-        raise ValueError(f"Document {i} has no source: {source}")
+        raise ValueError(f"chunk {i}: missing 'text'")
+    if source == "inline" or not source.strip():
+        raise ValueError(f"chunk {i}: missing 'source'")
     if version == "":
-        raise ValueError(f"Document {i} has no version: {version}")
+        raise ValueError(f"chunk {i}: missing 'version'")
     if len(text) > CHUNK_CHARS:
-        raise ValueError(f"Document {i} is too long: {len(text)} characters")
+        raise ValueError(f"chunk {i}: {len(text)} chars, max {CHUNK_CHARS}")
 
 
 def texts(chunks: Sequence[Chunk]) -> list[str]:
