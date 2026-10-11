@@ -7,7 +7,9 @@ still resolve to the text it named, and does the poisoned page get dropped
 without taking the provenance of the clean ones with it.
 """
 
-from assistant.rag import chunk_document, source_for
+import pytest
+
+from assistant.rag import Chunk, as_chunks, chunk_document, source_for
 
 REFUNDS = "approved refunds are processed within five business days"
 
@@ -55,3 +57,77 @@ def test_a_long_document_becomes_several_chunks_that_know_their_offsets():
         # the offsets are a claim about the ORIGINAL text, and they are checkable
         assert body[chunk.start : chunk.end] == chunk.text
     assert chunks[1].start < chunks[0].end, "chunks must overlap or boundaries lose sentences"
+
+
+def test_as_chunks_accepts_and_checks_strings():
+    """
+    A plain string is a whole document: it gets a derived
+    source and version and it is rejected when it is blank
+    or bigger thn MAX_DOC_CHARS.
+    """
+    chunks = as_chunks(["hello", "world"])
+    assert [c.text for c in chunks] == ["hello", "world"]
+    assert all(c.source.startswith("doc-") for c in chunks)
+    assert all(c.version for c in chunks)
+
+    with pytest.raises(ValueError, match="missing 'text'"):
+        as_chunks([" "])
+    with pytest.raises(ValueError, match="max"):
+        as_chunks(["x" * 200_001])
+
+
+def test_as_chunks_accepts_and_checks_dicts():
+    """
+    A dict with 'text' and 'source' keys is a named document.
+    It is rejected when it is missing or blank 'text' or 'source'.
+    """
+    chunks = as_chunks([{"text": "REFUNDS", "source": "faq.md"}])
+    assert [c.text for c in chunks] == ["REFUNDS"]
+    assert [c.source for c in chunks] == ["faq.md"]
+
+    with pytest.raises(ValueError, match="must be a string"):
+        as_chunks([{"text": 123, "source": "faq.md"}])
+    with pytest.raises(ValueError, match="missing or blank 'source'"):
+        as_chunks([{"text": "REFUNDS", "source": " "}])
+    with pytest.raises(ValueError, match="max"):
+        as_chunks([{"text": "x" * 200_001, "source": "faq.md"}])
+    with pytest.raises(ValueError, match="missing 'text'"):
+        as_chunks([{"text": " ", "source": "faq.md"}])
+
+
+def test_as_chunks_accepts_and_checks_chunks():
+    """
+    A Chunk is a slice someone else already cut. It brings its own source and version,
+    and is rejected when it is missing or blank 'text' or 'source' or 'version'.
+    """
+    good = Chunk(text="REFUNDS", source="faq.md", version="1.0.0")
+    chunks = as_chunks([good], tenant="alice")
+    assert [c.text for c in chunks] == ["REFUNDS"]
+    assert [c.tenant for c in chunks] == ["alice"]
+
+    blank_text = Chunk(text="", source="faq.md", version="1.0.0")
+    no_source = Chunk(text="REFUNDS", version="1.0.0")
+    no_version = Chunk(text="REFUNDS", source="faq.md")
+    too_long = Chunk(text="x" * 481, source="faq.md", version="1.0.0")
+
+    with pytest.raises(ValueError, match="missing 'text'"):
+        as_chunks([blank_text])
+    with pytest.raises(ValueError, match="missing 'source'"):
+        as_chunks([no_source])
+    with pytest.raises(ValueError, match="missing 'version'"):
+        as_chunks([no_version])
+    with pytest.raises(ValueError, match="max"):
+        as_chunks([too_long])
+
+
+def test_as_chunks_rejects_a_bare_container():
+    """
+    `add` takes a list of documents. A bare str would be looped over letter by
+    letter and a bare dict key by key, each becoming a junk document.
+    """
+    with pytest.raises(TypeError, match="list of documents"):
+        as_chunks("hello")
+    with pytest.raises(TypeError, match="list of documents"):
+        as_chunks({"text": "hi", "source": "faq.md"})
+    with pytest.raises(TypeError, match="unknown type"):
+        as_chunks([123])
