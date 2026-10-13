@@ -47,9 +47,9 @@ e.g. `add(docs, tenant=...)`, that:
 
 **Prove it** in `tests/test_rag_chunks.py`:
 
-- [ ] ingest the same source twice: the chunk count does not change
-- [ ] ingest an edited body under the same source: same ids, different `version`
-- [ ] for a retrieved chunk, `cite()` has `source`, `version` and `offsets`, and
+- [x] ingest the same source twice: the chunk count does not change
+- [x] ingest an edited body under the same source: same ids, different `version`
+- [x] for a retrieved chunk, `cite()` has `source`, `version` and `offsets`, and
       `body[start:end] == text`
 
 **Think about:** why the id leaves out the text, and what breaks if it doesn't. Guess
@@ -194,7 +194,7 @@ Watch for these (checked against this corpus):
       them. Drop only tokens that are pure punctuation; keep anything with a letter or digit.
 - [ ] **Contractions split oddly.** `"We're"` becomes `['we', "'re"]`, `"Don't"` becomes
       `['do', "n't"]`. NLTK's list has `"don't"`, not `"n't"`, so the pieces survive unless
-      your filter handles them.
+      your filter handles them.****
 - [ ] **One tokenizer, both sides.** Put it in one helper and use it in
       `RagStore.__init__` (`self.toks`) **and** `_rank` (`q`). If index and query split
       differently, matches fail silently, the lexical version of an embedder mismatch.

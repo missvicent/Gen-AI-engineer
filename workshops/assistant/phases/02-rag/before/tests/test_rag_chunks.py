@@ -9,7 +9,7 @@ without taking the provenance of the clean ones with it.
 
 import pytest
 
-from assistant.rag import Chunk, as_chunks, chunk_document, source_for
+from assistant.rag import Chunk, RagStore, as_chunks, chunk_document, source_for
 
 REFUNDS = "approved refunds are processed within five business days"
 
@@ -131,3 +131,52 @@ def test_as_chunks_rejects_a_bare_container():
         as_chunks({"text": "hi", "source": "faq.md"})
     with pytest.raises(TypeError, match="unknown type"):
         as_chunks([123])
+
+
+def test_reingesting_the_same_source_updates_instead_of_duplicating():
+    """
+    When a source is re-ingested, the existing chunks should be updated
+    instead of duplicated.
+    """
+    doc = [{"text": "REFUNDS. This is a refund policy." * 100, "source": "faq.md"}]
+    store = RagStore(doc)
+    n = len(store.chunks)
+    stats = store.add(doc)
+    assert n > 1, "a long document must be split or it cannot be ranked"
+    assert len(store.chunks) == n, "re-ingesting the same source should not duplicate chunks"
+    assert stats["inserted"] == 0, "re-ingesting the same source should not insert new chunks"
+    assert stats["unchanged"] == n, (
+        "re-ingesting the same source should not change the existing chunks"
+    )
+
+
+def test_reingesting_the_same_source_updates_the_chunks():
+    """When a source is re-ingested, the existing chunks should be updated."""
+    doc = [{"text": "REFUNDS. This is a refund policy." * 100, "source": "faq.md"}]
+    doc2 = [
+        {
+            "text": "REFUNDS. this is a return policy." * 100,
+            "source": "faq.md",
+        }
+    ]
+    store = RagStore(doc)
+    n = len(store.chunks)
+    ids_before = {c for c in store.chunks}
+    versions_before = {c.version for c in store.chunks.values()}
+    stats = store.add(doc2)
+    assert stats["inserted"] == 0
+    assert stats["updated"] == n
+    assert {c for c in store.chunks} == ids_before  # could it be set(store.chunks) too
+    assert {c.version for c in store.chunks.values()} != versions_before
+
+
+def test_a_retrieved_chunk_cites_its_source_version_and_offsets():
+    """A retrieved chunk should cite its source, version, and offsets."""
+    doc = [{"text": "REFUNDS. This is a refund policy." * 100, "source": "faq.md"}]
+    store = RagStore(doc)
+    chunk = store.retrieve("refund", k=1)[0]
+    c = chunk.cite("1")
+    start, end = c["offsets"]
+    assert c["source"] == "faq.md"
+    assert c["version"]
+    assert doc[0]["text"][start:end] == chunk.text
