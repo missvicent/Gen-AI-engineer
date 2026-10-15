@@ -27,7 +27,7 @@ from __future__ import annotations
 import math
 import uuid
 from collections import Counter
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, replace
 
 from assistant.provenance import digest
@@ -216,10 +216,19 @@ def texts(chunks: Sequence[Chunk]) -> list[str]:
     return [c.text for c in chunks]
 
 
+Reranker = Callable[[str, list[Chunk]], list[Chunk]]
+
+
 class RagStore:
-    def __init__(self, docs: Iterable[str | dict | Chunk], tenant: str = "local") -> None:
+    def __init__(
+        self,
+        docs: Iterable[str | dict | Chunk],
+        tenant: str = "local",
+        reranker: Reranker | None = None,
+    ) -> None:
         self.chunks: dict[str, Chunk] = {}
         self._reindex()
+        self.reranker = reranker
         self.add(docs, tenant)
 
     def add(self, docs: Iterable[str | dict | Chunk], tenant: str = "local") -> dict[str, int]:
@@ -305,12 +314,26 @@ class RagStore:
         That is why it needs no threshold and a vector store does — and why every
         offline test of "the assistant abstains" passed while the deployed stack
         could not abstain at all."""
-        return [self.docs[i] for i, _ in self._rank(query, k)]
+        return texts(self.retrieve(query, k))
 
     def retrieve(self, query: str, k: int = 3) -> list[Chunk]:
         # The fused rank, not a similarity, and labelled as such. Comparing this
         # number to a cosine threshold is a category error the units prevent.
-        return [
-            replace(self.order[i], score=score, scored_by="rrf")
-            for i, score in self._rank(query, k)
-        ]
+
+        if k < 0:
+            raise ValueError("k must be >= 0")
+
+        if self.reranker is None:
+            return [
+                replace(self.order[i], score=score, scored_by="rrf")
+                for i, score in self._rank(query, k)
+            ]
+        else:
+            reranked_chunks = self.reranker(
+                query,
+                [
+                    replace(self.order[i], score=score, scored_by="rrf+rerank")
+                    for i, score in self._rank(query, 4 * k)
+                ],
+            )
+            return reranked_chunks[:k]
