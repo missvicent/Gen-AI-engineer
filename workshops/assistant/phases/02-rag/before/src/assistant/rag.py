@@ -42,6 +42,10 @@ CHUNK_NAMESPACE = uuid.UUID("6f1a4a2e-6f2a-5c7b-9b23-2f4c1a9d8e10")
 CHUNK_CHARS = 480
 CHUNK_OVERLAP = 60
 
+#: With a reranker, fetch this many times k. The reranker can only reorder what
+#: it is given, so the pool has to reach below the cut for it to rescue anything.
+RERANK_POOL = 4
+
 #: Rejected before chunking, at the trust boundary. One unbounded upload becomes
 #: thousands of chunks and a full reindex that stalls every other caller.
 MAX_DOC_CHARS = 200_000
@@ -319,21 +323,19 @@ class RagStore:
     def retrieve(self, query: str, k: int = 3) -> list[Chunk]:
         # The fused rank, not a similarity, and labelled as such. Comparing this
         # number to a cosine threshold is a category error the units prevent.
+        # With a reranker the order is the reranker's but the score stays RRF,
+        # hence "rrf+rerank": never re-sort these by score.
 
         if k < 0:
             raise ValueError("k must be >= 0")
 
         if self.reranker is None:
-            return [
-                replace(self.order[i], score=score, scored_by="rrf")
-                for i, score in self._rank(query, k)
-            ]
-        else:
-            reranked_chunks = self.reranker(
-                query,
-                [
-                    replace(self.order[i], score=score, scored_by="rrf+rerank")
-                    for i, score in self._rank(query, 4 * k)
-                ],
-            )
-            return reranked_chunks[:k]
+            return self._candidates(query, k, "rrf")
+        pool = self._candidates(query, RERANK_POOL * k, "rrf+rerank")
+        return self.reranker(query, pool)[:k]
+
+    def _candidates(self, query: str, n: int, scored_by: str) -> list[Chunk]:
+        return [
+            replace(self.order[i], score=score, scored_by=scored_by)
+            for i, score in self._rank(query, n)
+        ]

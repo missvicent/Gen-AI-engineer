@@ -180,3 +180,50 @@ def test_a_retrieved_chunk_cites_its_source_version_and_offsets():
     assert c["source"] == "faq.md"
     assert c["version"]
     assert doc[0]["text"][start:end] == chunk.text
+
+
+# Ten near-identical policy notes outrank the one chunk that names the id: under
+# RRF it lands 6th, below any k=3 cut. A reranker has to rescue it.
+NOTES = [f"refund policy note {i}" for i in range(10)]
+CREDIT = "refund issued by credit note INV-88231 after review of the full payment history"
+QUERY = "refund note inv-88231"
+
+
+def all_words(query: str, chunks: list[Chunk]) -> list[Chunk]:
+    """Fake reranker: chunks containing every query word go first. Checks the
+    wiring without downloading a model."""
+    words = set(query.lower().split())
+    return sorted(chunks, key=lambda c: not words <= set(c.text.lower().split()))
+
+
+def test_an_identity_reranker_changes_nothing():
+    """The wiring alone must not change the answer: same ids, same length."""
+    plain = RagStore(NOTES + [CREDIT]).retrieve(QUERY, k=3)
+    wired = RagStore(NOTES + [CREDIT], reranker=lambda q, cs: cs).retrieve(QUERY, k=3)
+    assert [c.id for c in wired] == [c.id for c in plain]
+    assert {c.scored_by for c in wired} == {"rrf+rerank"}
+
+
+def test_the_reranker_can_rescue_a_chunk_from_below_the_cut():
+    """The reranker sees a pool wider than k and the result is cut back to k.
+    Without the wide pool it could only shuffle the top 3; without the cut the
+    caller would get the whole pool."""
+    assert CREDIT not in RagStore(NOTES + [CREDIT]).search(QUERY, k=3)
+
+    store = RagStore(NOTES + [CREDIT], reranker=all_words)
+    hits = store.retrieve(QUERY, k=3)
+    assert len(hits) == 3
+    assert hits[0].text == CREDIT
+
+
+def test_search_follows_the_same_path_as_retrieve():
+    store = RagStore(NOTES + [CREDIT], reranker=all_words)
+    assert store.search(QUERY, k=3) == [c.text for c in store.retrieve(QUERY, k=3)]
+
+
+def test_a_reranker_does_not_break_abstention_or_the_k_guard():
+    store = RagStore(NOTES + [CREDIT], reranker=lambda q, cs: cs)
+    assert store.retrieve("zebra quantum", k=3) == []
+    assert store.retrieve(QUERY, k=0) == []
+    with pytest.raises(ValueError, match="k must be"):
+        store.retrieve(QUERY, k=-1)
