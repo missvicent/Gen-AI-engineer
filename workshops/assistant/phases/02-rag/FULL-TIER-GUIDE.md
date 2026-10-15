@@ -59,7 +59,7 @@ first, then check ADR-0012.
 
 **Build.**
 
-- [ ] an optional reranker injected into `RagStore`: `rerank(query, chunks) -> chunks`.
+- [x] an optional reranker injected into `RagStore`: `rerank(query, chunks) -> chunks`.
       It reorders the fused top-N (fetch around 4×k, rerank, cut to k). None given means
       retrieval is unchanged, so the store stays offline by default.
 - [ ] a script, e.g. `scripts/recall.py`, that loads `corpus.jsonl` as
