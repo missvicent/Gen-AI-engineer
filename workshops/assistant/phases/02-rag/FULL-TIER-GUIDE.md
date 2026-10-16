@@ -106,11 +106,11 @@ TextCrossEncoder.list_supported_models()  # e.g. BAAI/bge-reranker-base
 
 **Build:** nothing. Write 5 to 10 sentences in the folder README or a `NOTES.md`.
 
-- [ ] what stays the same: `search(query, k)`, `retrieve(...) -> list[Chunk]`, `Chunk.id`
+- [x] what stays the same: `search(query, k)`, `retrieve(...) -> list[Chunk]`, `Chunk.id`
       as the point id, `cite()`
-- [ ] what changes: real embeddings, a collection with named dense + sparse vectors,
+- [x] what changes: real embeddings, a collection with named dense + sparse vectors,
       server-side RRF in place of your `_rank`, the tenant filter on **both** arms
-- [ ] what new risk appears: vector search never returns zero results, so abstention needs
+- [x] what new risk appears: vector search never returns zero results, so abstention needs
       a score floor (`ASSISTANT_MIN_SCORE`); an embedder swap needs a new collection
 
 **Qdrant reminders**, if you want to try it:
@@ -211,5 +211,5 @@ Watch for these (checked against this corpus):
 ## Done when
 
 - [ ] `make test` passes, including the new tests from sections 1, 2 (fake reranker) and 4
-- [ ] `scripts/recall.py` prints three exact-slice recall numbers, written in the README
-- [ ] you wrote the Qdrant explanation from memory before reading ADR-0012
+- [x] `scripts/recall.py` prints three exact-slice recall numbers, written in the README
+- [x] you wrote the Qdrant explanation from memory before reading ADR-0012
