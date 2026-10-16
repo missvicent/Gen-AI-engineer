@@ -36,3 +36,46 @@ Diff only the file you were asked to edit, against this layer's solution:
 ```bash
 diff -u src/assistant/rag.py ../after/src/assistant/rag.py
 ```
+
+## Recall on the exact slice
+
+`make recall` runs `scripts/recall.py`: the 8 `exact` questions from the golden set,
+searched against the 10-doc corpus. A hit means a retrieved chunk's `source` is in
+the row's `supporting_doc_ids`. Measured 2026-10-16.
+
+Run it from this folder (`02-rag/before`):
+
+```bash
+make recall
+```
+
+- The target sets `PYTHONPATH=src` and uses the `release` dependency group, which
+  has fastembed. The first run downloads the cross-encoder (~80 MB). After that it
+  runs offline.
+- Without fastembed, the script prints `Rerank score: n/a` and the other two arms
+  still run.
+- To measure a different k, change `K` at the top of `scripts/recall.py`.
+
+| k | dense only | hybrid (BM25 + dense, RRF) | hybrid + rerank |
+|---|---|---|---|
+| 1 | 0.875 | 0.875 | **1.0** |
+| 3 | 1.0 | 1.0 | 1.0 |
+
+The two arms tie at k=1 but miss different questions:
+
+| question | dense top-1 | hybrid top-1 | correct |
+|---|---|---|---|
+| g-009 error code for a supplier bank rejection | err-4090 ✅ | onboarding#suppliers ❌ | runbook#err-4090 |
+| g-012 currency conversion policy for invoices | err-4090 ❌ | policy#currency ✅ | policy#currency |
+
+The cross-encoder reads the question and the passage together, so it fixes both.
+
+Caveats:
+
+- **k=3 is saturated.** With 10 docs, the top 3 is 30% of the corpus, so every arm
+  scores 1.0. k=1 is the number that shows a difference.
+- **Offline "dense" is bag-of-words cosine,** so it is lexical too. That is why dense
+  and hybrid are so close. A real embedder (section 3) should widen the gap.
+- **`query.lower().split()` keeps the `?` attached** (`inv-88231?`), so that token
+  never matches. It did not cost a hit here, because "credit note" matched anyway,
+  but the tokenizer fix in section 4 will change these numbers.
