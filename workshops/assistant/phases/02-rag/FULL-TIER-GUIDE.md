@@ -151,16 +151,21 @@ Read the jsonl directly. `load_golden` in `golden/src/dataset.py` is still a stu
 
 ### Step 2: one tokenizer with stopwords
 
-- [ ] **Choose the stopword source.** NLTK (needs two downloads, see the reference below)
+- [x] **Choose the stopword source.** NLTK (needs two downloads, see the reference below)
       or a pasted `frozenset` of ~30 words (no dependency). Note which and why.
-- [ ] if NLTK: write down how the downloads get installed (e.g. a Makefile step), so a
+- [x] if NLTK: write down how the downloads get installed (e.g. a Makefile step), so a
       fresh machine or CI still runs offline
-- [ ] **Keep ids.** Drop only tokens that are pure punctuation; keep anything with a
+- [x] **Keep ids.** Drop only tokens that are pure punctuation; keep anything with a
       letter or digit, so `inv-88231`, `err-4021` and `per-supplier` survive
-- [ ] **Handle contraction pieces** (`'re`, `n't`) so they don't survive as tokens
-- [ ] **One helper, both sides:** used in `RagStore.__init__` (`self.toks`) **and**
+- [x] **Handle contraction pieces** (`'re`, `n't`) so they don't survive as tokens
+- [x] **One helper, both sides:** used in `RagStore.__init__` (`self.toks`) **and**
       `_rank` (`q`)
-- [ ] rerun step 1: expect only g-016 (budget cap) to start passing
+- [x] rerun step 1: expect only g-016 (budget cap) to start passing
+  - Chose NLTK: its 198-word list covers the questions without hand-curating one;
+    downloads come from `make nltk-data` (a dependency of `test` and `recall`, skipped
+    when already present). Added `PorterStemmer` too: g-016 passed (4 failed, 2
+    passed), then stemming re-broke it (`year` matches `years`), but exact-slice
+    recall@1 went dense 0.75 → 0.875, fused 0.75 → 1.0. The floor in step 3 owns g-016.
 
 ### Step 3: the floor
 
