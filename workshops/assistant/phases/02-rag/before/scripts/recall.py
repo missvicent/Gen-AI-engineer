@@ -5,7 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from assistant.rag import RagStore
+from assistant.rag import RagStore, tokenize
 from assistant.rerank import cross_encoder
 
 HERE = Path(__file__).resolve().parent
@@ -26,7 +26,7 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return data
 
 
-def _to_list(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def to_list(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
             "source": row["id"],
@@ -41,7 +41,7 @@ def _exact_rows(golden: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def dense(store: RagStore, question: str) -> list[str]:
-    q = question.lower().split()
+    q = tokenize(question)
     positions = store._dense(q)[:K]
     return [store.order[i].source for i in positions]
 
@@ -76,7 +76,7 @@ def main() -> None:
     corpus = load_jsonl(CORPUS)
     golden = load_jsonl(GOLDEN)
 
-    corpus_dict = _to_list(corpus)
+    corpus_dict = to_list(corpus)
     golden_exact = _exact_rows(golden)
 
     store = RagStore(corpus_dict)

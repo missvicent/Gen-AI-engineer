@@ -12,6 +12,7 @@ dependencies = [
   # an issuer-signed token would make the claim false in the only place it counts.
   "pyjwt[crypto]>=2.8,<3",
   "pytest>=8,<9",
+  "nltk>=3.10.3",
 ]
 
 [tool.ruff]
@@ -79,5 +80,5 @@ release = [
 
 [tool.pytest.ini_options]
 addopts = "-q"
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 markers = ["integration: needs real services (Qdrant/Ollama/MCP/OTLP) — excluded from the fast tier"]

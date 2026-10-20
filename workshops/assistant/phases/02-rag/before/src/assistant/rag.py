@@ -30,6 +30,10 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, replace
 
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from nltk.tokenize import word_tokenize
+
 from assistant.provenance import digest
 
 #: Chunk ids are UUIDv5 — deterministic, and one of the two id types Qdrant
@@ -51,6 +55,10 @@ RERANK_POOL = 4
 MAX_DOC_CHARS = 200_000
 
 DEFAULT_SOURCE_PREFIX = "doc"
+
+STOP_WORDS = set(stopwords.words("english"))
+
+STEMMER = PorterStemmer()
 
 
 @dataclass(frozen=True)
@@ -220,6 +228,17 @@ def texts(chunks: Sequence[Chunk]) -> list[str]:
     return [c.text for c in chunks]
 
 
+def tokenize(text: str) -> list[str]:
+    return [
+        STEMMER.stem(w)
+        for w in word_tokenize(text.lower())
+        if any(c.isalnum() for c in w)
+        and w not in STOP_WORDS
+        and not w.startswith("'")
+        and w != "n't"
+    ]
+
+
 Reranker = Callable[[str, list[Chunk]], list[Chunk]]
 
 
@@ -257,7 +276,7 @@ class RagStore:
     def _reindex(self) -> None:
         self.order = list(self.chunks.values())
         self.docs = texts(self.order)
-        self.toks = [d.lower().split() for d in self.docs]
+        self.toks = [tokenize(d) for d in self.docs]
         self.df: Counter[str] = Counter()
         for t in self.toks:
             self.df.update(set(t))
@@ -296,7 +315,7 @@ class RagStore:
         Reciprocal rank fusion scores a document by `1 / (60 + rank)` in each
         list it appears in, summed.
         """
-        q = query.lower().split()
+        q = tokenize(query)
         rankings = [
             self._bm25(q),
             self._dense(q),

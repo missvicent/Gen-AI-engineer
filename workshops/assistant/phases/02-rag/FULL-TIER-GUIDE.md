@@ -129,41 +129,66 @@ Write your version first, then compare it with the amendment in
 
 ## 4. Unanswerable questions abstain, proven in `tests/test_retrieval.py`
 
+The docstring says this store abstains "on its own" because zero overlap means zero
+score. Try *"What is our per-supplier budget cap for next year?"*: `what`, `is`, `our`,
+`for` are in the corpus, so the score is not zero. Do the steps in order; each one
+builds on the last.
+
+### Step 1: write the failing test
+
 Create `before/tests/test_retrieval.py` with **store-level** checks only. It is not the
 full-service file in `after/`.
 
-- [ ] every `expects_abstention` row in the golden set: `retrieve(question)` returns `[]`
-- [ ] an answerable question (e.g. `INV-88231`) still returns its chunk, so abstention did
+- [x] every `expects_abstention` row in the golden set: `retrieve(question)` returns `[]`
+      (5 rows: g-015, g-016, g-017, g-018, g-027)
+- [x] an answerable question (e.g. `INV-88231`) still returns its chunk, so abstention did
       not break recall
+- [x] run it and keep the output: these failures are your baseline
+  - Baseline (2026-10-19): `5 failed, 1 passed`. Every abstention row gets 3 chunks
+    back, all `scored_by='rrf'` at ~0.032-0.033; `INV-88231` passes.
 
-**Things you'll discover.** The docstring says this store abstains "on its own" because
-zero overlap means zero score. Now try *"What is our per-supplier budget cap for next
-year?"*. Words like `what`, `is`, `our`, `for` are in the corpus, so the score is not zero.
-You need stopword removal or a floor. Pick one and say why. A floor on an RRF score means
-nothing (see `scored_by`), so decide which arm's score the floor applies to.
+Read the jsonl directly. `load_golden` in `golden/src/dataset.py` is still a stub.
 
-### Stopwords alone fix 1 of 6 rows
+### Step 2: one tokenizer with stopwords
+
+- [ ] **Choose the stopword source.** NLTK (needs two downloads, see the reference below)
+      or a pasted `frozenset` of ~30 words (no dependency). Note which and why.
+- [ ] if NLTK: write down how the downloads get installed (e.g. a Makefile step), so a
+      fresh machine or CI still runs offline
+- [ ] **Keep ids.** Drop only tokens that are pure punctuation; keep anything with a
+      letter or digit, so `inv-88231`, `err-4021` and `per-supplier` survive
+- [ ] **Handle contraction pieces** (`'re`, `n't`) so they don't survive as tokens
+- [ ] **One helper, both sides:** used in `RagStore.__init__` (`self.toks`) **and**
+      `_rank` (`q`)
+- [ ] rerun step 1: expect only g-016 (budget cap) to start passing
+
+### Step 3: the floor
+
+- [ ] print the raw arm score for answerable and unanswerable rows
+- [ ] set the floor in the gap between them, the way ADR-0012 picked 0.58
+- [ ] apply it to one arm's raw score (BM25 or cosine), never to RRF, which only
+      reflects rank and always exists (see `scored_by`)
+
+### Step 4: green, and nothing else broke
+
+- [ ] `tests/test_retrieval.py` passes
+- [ ] `make recall`: exact-slice numbers unchanged from the README (or explain the change)
+
+### Reference: why stopwords alone fix 1 of 5 rows
 
 After removing stopwords, these content words still match the corpus:
 
 | Row | Content words that still match |
 |---|---|
-| g-018 budget cap | none, so it abstains ✅ |
-| g-017 / g-020 onboarding | `new`, `finance`, `team` |
-| g-019 supplier migration | `payment`, `supplier` |
-| g-021 supplier contracts | `supplier` |
-| g-030 backup provider | `backup`, `payment`, `provider` |
+| g-016 budget cap | none, so it abstains |
+| g-015 / g-018 onboarding | `new`, `finance`, `team` |
+| g-017 supplier migration | `payment`, `supplier` |
+| g-027 backup provider | `backup`, `payment`, `provider` |
 
 Near-miss questions use the corpus's own words on purpose, so a lexical store always
-scores them above zero. You need **stopwords plus a floor**:
+scores them above zero. That's why you need **stopwords plus a floor**.
 
-- [ ] stopwords drop the noise words
-- [ ] the floor decides when a match is too weak to count as evidence. Put it on one arm's
-      raw score (BM25 or cosine), never on RRF, which only reflects rank and always exists.
-- [ ] pick the number the way ADR-0012 picked 0.58: print the scores for answerable and
-      unanswerable rows, then set the floor in the gap between them
-
-### NLTK for tokenizing and stopwords
+### Reference: NLTK for tokenizing and stopwords
 
 ```python
 # uv add nltk   (inside 02-rag/before)
@@ -177,29 +202,24 @@ STOP = frozenset(stopwords.words("english"))
 ```
 
 `word_tokenize` fixes the `?` problem: `"INV-88231?"` becomes `['inv-88231', '?']`.
-Watch for these (checked against this corpus):
+Gotchas, checked against this corpus:
 
-- [ ] **Two downloads, not part of the package.** Without them:
-      `LookupError: Resource 'punkt_tab' not found.` That breaks "runs offline" on a fresh
-      machine or in CI. Write down how they get installed (e.g. a Makefile step). A pasted
-      `frozenset` of ~30 words is the no-dependency alternative; note which you chose and why.
-- [ ] **`isalnum()` deletes your ids.** The hyphen makes it return False:
+- **Two downloads, not part of the package.** Without them:
+  `LookupError: Resource 'punkt_tab' not found.`
+- **`isalnum()` deletes your ids.** The hyphen makes it return False:
 
-      ```
-      word_tokenize("credit note inv-88231?")  → [..., 'inv-88231', '?']
-      filter with w.isalnum()                  → ['invoice', 'credited', 'credit', 'note']
-      ```
+  ```
+  word_tokenize("credit note inv-88231?")  → [..., 'inv-88231', '?']
+  filter with w.isalnum()                  → ['invoice', 'credited', 'credit', 'note']
+  ```
 
-      `inv-88231`, `err-4021` and `per-supplier` all disappear, and the exact slice with
-      them. Drop only tokens that are pure punctuation; keep anything with a letter or digit.
-- [ ] **Contractions split oddly.** `"We're"` becomes `['we', "'re"]`, `"Don't"` becomes
-      `['do', "n't"]`. NLTK's list has `"don't"`, not `"n't"`, so the pieces survive unless
-      your filter handles them.****
-- [ ] **One tokenizer, both sides.** Put it in one helper and use it in
-      `RagStore.__init__` (`self.toks`) **and** `_rank` (`q`). If index and query split
-      differently, matches fail silently, the lexical version of an embedder mismatch.
-- [ ] **No stemming.** `credited` and `credit` still don't match. NLTK's `PorterStemmer`
-      is the next step if your recall numbers show that gap; abstention doesn't need it.
+- **Contractions split oddly.** `"We're"` becomes `['we', "'re"]`, `"Don't"` becomes
+  `['do', "n't"]`. NLTK's list has `"don't"`, not `"n't"`, so the pieces survive unless
+  your filter handles them.
+- **Index and query must split the same way.** Otherwise matches fail silently, the
+  lexical version of an embedder mismatch.
+- **No stemming.** `credited` and `credit` still don't match. NLTK's `PorterStemmer` is
+  the next step if your recall numbers show that gap; abstention doesn't need it.
 
 ## Stretch (only if the full pass was easy)
 
@@ -210,6 +230,7 @@ Watch for these (checked against this corpus):
 
 ## Done when
 
+- [ ] `make test` collects: `golden/tests/` fails with `No module named 'src'`
 - [ ] `make test` passes, including the new tests from sections 1, 2 (fake reranker) and 4
 - [x] `scripts/recall.py` prints three exact-slice recall numbers, written in the README
 - [x] you wrote the Qdrant explanation from memory before reading ADR-0012
