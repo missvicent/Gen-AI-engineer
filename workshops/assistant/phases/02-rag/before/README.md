@@ -58,17 +58,24 @@ make recall
 
 | k | dense only | hybrid (BM25 + dense, RRF) | hybrid + rerank |
 |---|---|---|---|
-| 1 | 0.875 | 0.875 | **1.0** |
+| 1 | 0.875 | **1.0** | **1.0** |
 | 3 | 1.0 | 1.0 | 1.0 |
 
-The two arms tie at k=1 but miss different questions:
+Measured after the section 4 tokenizer (NLTK `word_tokenize`, stopwords, Porter
+stemming). Before it, k=1 was 0.875 / 0.875 / 1.0, and the two arms missed different
+questions (g-009 for hybrid, g-012 for dense). Now hybrid gets every exact row and
+dense misses one:
 
 | question | dense top-1 | hybrid top-1 | correct |
 |---|---|---|---|
-| g-009 error code for a supplier bank rejection | err-4090 ✅ | onboarding#suppliers ❌ | runbook#err-4090 |
-| g-012 currency conversion policy for invoices | err-4090 ❌ | policy#currency ✅ | policy#currency |
+| g-020 date invoice INV-88102 was issued | policy#currency ❌ | ap-handbook#credit-notes ✅ | ap-handbook#credit-notes |
 
-The cross-encoder reads the question and the passage together, so it fixes both.
+Why the numbers moved:
+
+- **Stemming** joins `rejection`/`rejected` (g-009) and `date`/`dated` (g-020), and
+  `word_tokenize` splits the `?` off ids, so `inv-88231?` now matches `inv-88231`.
+- **Stopwords alone made k=1 worse** (0.75 / 0.75): the old hits partly rode on
+  shared `the`/`was`/`what`. Stemming recovered them.
 
 Caveats:
 
@@ -76,6 +83,3 @@ Caveats:
   scores 1.0. k=1 is the number that shows a difference.
 - **Offline "dense" is bag-of-words cosine,** so it is lexical too. That is why dense
   and hybrid are so close. A real embedder (section 3) should widen the gap.
-- **`query.lower().split()` keeps the `?` attached** (`inv-88231?`), so that token
-  never matches. It did not cost a hit here, because "credit note" matched anyway,
-  but the tokenizer fix in section 4 will change these numbers.

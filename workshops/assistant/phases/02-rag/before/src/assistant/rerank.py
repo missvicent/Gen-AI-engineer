@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from dataclasses import replace
 
 from assistant.rag import Chunk, Reranker, texts
 
@@ -28,6 +29,8 @@ def cross_encoder(model_name: str = DEFAULT_MODEL) -> Reranker | None:
         texts_to_rank = texts(chunks)
         scores = list(model.rerank(query, texts_to_rank))
         pair_scores = sorted(zip(chunks, scores, strict=True), key=lambda x: x[1], reverse=True)
-        return [chunk for chunk, _ in pair_scores]
+        return [
+            replace(chunk, score=float(score), scored_by="rerank") for chunk, score in pair_scores
+        ]
 
     return rerank

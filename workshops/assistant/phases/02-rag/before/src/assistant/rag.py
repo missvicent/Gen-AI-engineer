@@ -58,6 +58,9 @@ DEFAULT_SOURCE_PREFIX = "doc"
 
 STOP_WORDS = set(stopwords.words("english"))
 
+# it sits between 0.366 (g-027) and the answerable rows at 1.0 or more.
+MIN_RERANK_SCORE = 0.7
+
 STEMMER = PorterStemmer()
 
 
@@ -283,7 +286,7 @@ class RagStore:
         self.n = len(self.docs)
         self.avg = sum(len(t) for t in self.toks) / max(1, self.n)
 
-    def _bm25(self, q: list[str]) -> list[int]:
+    def _bm25(self, q: list[str]) -> list[tuple[int, float]]:
         out = []
         for i, toks in enumerate(self.toks):
             tf = Counter(toks)
@@ -295,9 +298,9 @@ class RagStore:
                 denom = tf[term] + 1.5 * (0.25 + 0.75 * len(toks) / self.avg)
                 s += idf * (tf[term] * 2.5) / denom
             out.append((i, s))
-        return [i for i, s in sorted(out, key=lambda x: -x[1]) if s > 0]
+        return [(i, s) for i, s in sorted(out, key=lambda x: -x[1]) if s > 0]
 
-    def _dense(self, q: list[str]) -> list[int]:
+    def _dense(self, q: list[str]) -> list[tuple[int, float]]:
         qc = Counter(q)
         out = []
         for i, toks in enumerate(self.toks):
@@ -307,7 +310,7 @@ class RagStore:
                 sum(v * v for v in d.values())
             )
             out.append((i, dot / norm if norm else 0.0))
-        return [i for i, s in sorted(out, key=lambda x: -x[1]) if s > 0]
+        return [(i, s) for i, s in sorted(out, key=lambda x: -x[1]) if s > 0]
 
     def _rank(self, query: str, k: int) -> list[tuple[int, float]]:
         """fuse the two rankings with RRF and return the top k as
@@ -322,7 +325,7 @@ class RagStore:
         ]
         score: dict[int, float] = {}
         for r in rankings:
-            for rank, doc_id in enumerate(r):
+            for rank, (doc_id, _) in enumerate(r):
                 score[doc_id] = score.get(doc_id, 0.0) + 1 / (60 + rank)
         ordered = sorted(score, key=lambda i: score[i], reverse=True)[:k]
         return [(i, score[i]) for i in ordered]
@@ -351,7 +354,12 @@ class RagStore:
         if self.reranker is None:
             return self._candidates(query, k, "rrf")
         pool = self._candidates(query, RERANK_POOL * k, "rrf+rerank")
-        return self.reranker(query, pool)[:k]
+        scored = self.reranker(query, pool)
+        return [
+            chunk
+            for chunk in scored
+            if chunk.scored_by != "rerank" or chunk.score >= MIN_RERANK_SCORE
+        ][:k]
 
     def _candidates(self, query: str, n: int, scored_by: str) -> list[Chunk]:
         return [

@@ -80,5 +80,8 @@ release = [
 
 [tool.pytest.ini_options]
 addopts = "-q"
-pythonpath = ["src", "."]
+pythonpath = ["src", ".", "golden"]
+# golden/ is a copy of the unfinished evals/golden-set lesson; add it back here once
+# its stubs are done. `uv run pytest golden/tests` still runs it on demand.
+testpaths = ["tests"]
 markers = ["integration: needs real services (Qdrant/Ollama/MCP/OTLP) — excluded from the fast tier"]

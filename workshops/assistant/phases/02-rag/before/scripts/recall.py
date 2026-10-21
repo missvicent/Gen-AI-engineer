@@ -42,7 +42,7 @@ def _exact_rows(golden: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def dense(store: RagStore, question: str) -> list[str]:
     q = tokenize(question)
-    positions = store._dense(q)[:K]
+    positions = [i for i, _ in store._dense(q)[:K]]
     return [store.order[i].source for i in positions]
 
 
