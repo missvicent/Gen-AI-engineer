@@ -140,7 +140,7 @@ Create `before/tests/test_retrieval.py` with **store-level** checks only. It is 
 full-service file in `after/`.
 
 - [x] every `expects_abstention` row in the golden set: `retrieve(question)` returns `[]`
-      (5 rows: g-015, g-016, g-017, g-018, g-027)
+      (5 rows then: g-015, g-016, g-017, g-026, plus a reworded copy of g-015, since removed)
 - [x] an answerable question (e.g. `INV-88231`) still returns its chunk, so abstention did
       not break recall
 - [x] run it and keep the output: these failures are your baseline
@@ -170,13 +170,13 @@ Read the jsonl directly. `load_golden` in `golden/src/dataset.py` is still a stu
 ### Step 3: the floor
 
 - [x] print the raw arm score for answerable and unanswerable rows
-  - `scripts/sweep.py` (cosine arm): unanswerable max 0.401 (g-027), answerable min
+  - `scripts/sweep.py` (cosine arm): unanswerable max 0.401 (g-026), answerable min
     0.211 (g-003), `INV-88231` 0.196. No gap: 0.42 blocks 5/5 bad but 10/22 good.
 - [x] set the floor in the gap between them, the way ADR-0012 picked 0.58
   - No lexical arm has a gap. BM25: unanswerable max 6.58, answerable min 1.26,
-    `INV-88231` 1.86. The cross-encoder does: unanswerable max 0.366 (g-027), so
+    `INV-88231` 1.86. The cross-encoder does: unanswerable max 0.366 (g-026), so
     `MIN_RERANK_SCORE = 0.7`. It costs 3 hard answerable rows (g-003 typo, g-013
-    adversarial, g-022 multi-hop), none from the exact slice.
+    adversarial, g-021 multi-hop), none from the exact slice.
 - [x] apply it to one arm's raw score (BM25 or cosine), never to RRF, which only
       reflects rank and always exists (see `scored_by`)
   - Applied to the reranker's score instead: `rerank()` now returns
@@ -198,9 +198,9 @@ After removing stopwords, these content words still match the corpus:
 | Row | Content words that still match |
 |---|---|
 | g-016 budget cap | none, so it abstains |
-| g-015 / g-018 onboarding | `new`, `finance`, `team` |
+| g-015 onboarding | `new`, `finance`, `team` |
 | g-017 supplier migration | `payment`, `supplier` |
-| g-027 backup provider | `backup`, `payment`, `provider` |
+| g-026 backup provider | `backup`, `payment`, `provider` |
 
 Near-miss questions use the corpus's own words on purpose, so a lexical store always
 scores them above zero. That's why you need **stopwords plus a floor**.

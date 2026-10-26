@@ -68,11 +68,11 @@ dense misses one:
 
 | question | dense top-1 | hybrid top-1 | correct |
 |---|---|---|---|
-| g-020 date invoice INV-88102 was issued | policy#currency ❌ | ap-handbook#credit-notes ✅ | ap-handbook#credit-notes |
+| g-019 date invoice INV-88102 was issued | policy#currency ❌ | ap-handbook#credit-notes ✅ | ap-handbook#credit-notes |
 
 Why the numbers moved:
 
-- **Stemming** joins `rejection`/`rejected` (g-009) and `date`/`dated` (g-020), and
+- **Stemming** joins `rejection`/`rejected` (g-009) and `date`/`dated` (g-019), and
   `word_tokenize` splits the `?` off ids, so `inv-88231?` now matches `inv-88231`.
 - **Stopwords alone made k=1 worse** (0.75 / 0.75): the old hits partly rode on
   shared `the`/`was`/`what`. Stemming recovered them.
