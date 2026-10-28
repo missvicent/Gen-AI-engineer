@@ -176,7 +176,7 @@ def report(rows: list[GoldenRow], chunks: list[str]) -> str:
         "",
         "| slice | rows | share |",
         "|---|---:|---:|",
-        *(f"| `{s}` | {n} | {n / total:.0%} |" for s, n in counts.items()),
+        *(f"| `{s}` | {n} | {n / (total or 1):.0%} |" for s, n in counts.items()),
     ]
     if problems:
         lines += ["", "**Problems**", *(f"- {p}" for p in problems)]

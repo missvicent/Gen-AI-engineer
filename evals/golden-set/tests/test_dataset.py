@@ -14,6 +14,7 @@ from src.dataset import (
     load_golden,
     missing_provenance,
     near_duplicates,
+    report,
     slice_counts,
     validate,
 )
@@ -112,3 +113,7 @@ def _corpus_records():
         for line in Path(CORPUS).read_text().splitlines()
         if line.strip()
     ]
+
+
+def test_report_on_an_empty_set_lists_problems_instead_of_crashing():
+    assert "slice semantic is empty" in report([], chunks())
