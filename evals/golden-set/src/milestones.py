@@ -44,11 +44,11 @@ TODO 4 — `reached`, `progress`, `render`. `render` puts score, interval and
   the reader to decide what it licenses, and readers are generous about their own
   work.
 
-Reference: ../../after/src/milestones.py.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 MILESTONES = (10, 25, 50)
@@ -80,24 +80,72 @@ class Interval:
         return high - low
 
     def indistinguishable_from(self, other: Interval) -> bool:
-        raise NotImplementedError("TODO 2: do the two intervals overlap?")
+        low, high = self.bounds
+        other_low, other_high = other.bounds
+        return low <= other_high and other_low <= high
 
 
 def wilson(passed: int, n: int, z: float = Z) -> tuple[float, float]:
-    raise NotImplementedError("TODO 1")
+    if n <= 0:
+        raise MilestoneError("no rows scored — there is nothing to put an interval on")
+    if not 0 <= passed <= n:
+        raise MilestoneError(f"passed ({passed}) out of {n} is not a proportion")
+    p = passed / n
+    centre = (p + z**2 / 2 / n) / (1 + z**2 / n)
+    spread = z * math.sqrt(p * (1 - p) / n + z**2 / 4 / n**2) / (1 + z**2 / n)
+    return (max(0.0, centre - spread), min(1.0, centre + spread))
 
 
 def verdict(n: int) -> str:
-    raise NotImplementedError("TODO 3")
+    if n < MILESTONES[0]:
+        return "not yet a measurement - finish the first ten"
+    if n < MILESTONES[1]:
+        return (
+            "smoke test. Enough to find obvious breakage and to prove the harness "
+            "runs end to end. Not enough to compare two systems, and not enough to "
+            "quote"
+        )
+    if n < MILESTONES[2]:
+        return (
+            "shape. Per-slice differences start to mean something, so this is where "
+            "you learn which slice is dragging the average. Still too noisy to gate a "
+            "merge on"
+        )
+    return (
+        "gateable. Wide enough to hold a per-slice signal and narrow enough that a "
+        "real regression clears the interval. This is the floor, not the target"
+    )
 
 
 def reached(n: int) -> int | None:
-    raise NotImplementedError("TODO 4")
+    """The highest milestone reached so far.
+
+    If `n` is 9, return `None`; if `n` is 24, return 10; if `n` is 49, return 25;
+    from 50 up, return 50.
+    """
+    hit = [m for m in MILESTONES if n >= m]
+    return hit[-1] if hit else None
 
 
 def progress(rows: int) -> str:
-    raise NotImplementedError("TODO 4")
+    """One line for the top of the report: where you are and where you're going."""
+    done = reached(rows)
+    if done is None:
+        return (
+            f"{rows}/{MILESTONES[0]} rows - "
+            f"{MILESTONES[0] - rows} to the first milestone"
+        )
+    if done == MILESTONES[-1]:
+        return f"{rows} rows - all milestones reached"
+    nxt = next(m for m in MILESTONES if m > rows)
+    return f"{rows} rows - milestone {done} reached, {nxt - rows} to {nxt}"
 
 
 def render(interval: Interval, label: str = "overall") -> str:
-    raise NotImplementedError("TODO 4")
+    """One line for the bottom of the report: what you scored."""
+    low, high = interval.bounds
+    return (
+        f"{label}: {interval.score:.2f} "
+        f"(95% CI {low:.2f}–{high:.2f}, n={interval.n}) "
+        f"— {verdict(interval.n)}"
+    )
