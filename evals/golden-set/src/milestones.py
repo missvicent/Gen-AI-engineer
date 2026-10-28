@@ -1,49 +1,33 @@
-"""TODO: fifty rows in three sittings — and what each sitting may claim.
+"""Score a golden set at 10, 25 and 50 rows, and say what each score may claim.
 
-"Write fifty golden rows" is the instruction most people abandon. Not because it
-is hard, but because it is shapeless: no feedback until the end, and a task with
-no feedback for four hours is a task you do once and never again.
+Fifty golden rows are written in three sittings, **10, 25 and 50**, and each one
+is scored. A score is never shown alone: it comes with a 95% interval and a
+verdict on what a sample of that size can support.
 
-So it comes in three: **10, 25, 50**. Each is a real stopping point, each gets
-scored, and each carries an honest statement of what a score at that `n` can
-support. The milestones are the motivation. The interval is the content.
+The number this module argues with: **8 of 10 is not 0.80.** It is 0.80 with a
+95% interval of about 0.49–0.94, so a mediocre system and a good one both
+produce 8/10 often enough that you cannot tell them apart. Ten rows still find
+obvious bugs; they are not a measurement yet.
 
-Before you start, the number this module exists to argue with: **8 of 10 is not
-0.80.** It is 0.80 with a 95% interval of roughly 0.49–0.94, which is to say a
-genuinely mediocre system and a genuinely good one both produce 8/10 often enough
-that you cannot tell them apart. Quote 0.80 from ten rows and you have said
-something false in a way that sounds rigorous. Ten rows is still enormously
-better than zero — it finds your obvious bugs on the first afternoon. It is just
-not a measurement yet.
-
-TODO 1 — `wilson(passed, n)`. Use the **Wilson score interval**, not the textbook
-  `p ± z·sqrt(p(1-p)/n)`. The reason is concrete rather than academic: at 10/10
-  the normal approximation returns a zero-width interval, confidently reporting
-  from ten questions that the system never fails, and near the edges it produces
-  bounds below 0 or above 1. Wilson stays inside [0, 1] and pulls the estimate
-  toward 0.5 in proportion to how little data you have.
+- `wilson(passed, n)` gives the interval. It uses the Wilson score interval
+  rather than the textbook `p ± z·sqrt(p(1-p)/n)`, which returns a zero-width
+  interval at 10/10 and bounds outside [0, 1] near the edges. Wilson stays in
+  [0, 1] and pulls small samples toward 0.5:
 
       centre = (p + z²/2n) / (1 + z²/n)
       spread = z·sqrt(p(1-p)/n + z²/4n²) / (1 + z²/n)
 
-  Raise `MilestoneError` on `n <= 0` or `passed > n`. A number there would be
-  worse than an exception, because it would be quoted.
-
-TODO 2 — `Interval.indistinguishable_from`. Two intervals that overlap cannot be
-  told apart, whatever their point estimates say. This is the check that stops
-  0.80 → 0.85 from being read as an improvement and shipped.
-
-TODO 3 — `verdict(n)`. What a score at this sample size licenses: below 10, not a
-  measurement; 10–24, a smoke test that finds breakage but must not be quoted;
-  25–49, enough for per-slice shape but too noisy to gate a merge; 50+, gateable.
-  Read `n` and **only** `n`. A rule that could see the score would be the loophole
-  that lets a good number buy conclusions the sample size does not support.
-
-TODO 4 — `reached`, `progress`, `render`. `render` puts score, interval and
-  verdict on one line, and they stay together: an interval with no verdict leaves
-  the reader to decide what it licenses, and readers are generous about their own
-  work.
-
+  It raises `MilestoneError` when `n <= 0` or `passed` is outside 0..n, because
+  a number there would be quoted.
+- `Interval.indistinguishable_from` says whether two scores can be told apart.
+  Overlapping intervals cannot, whatever their point estimates say, so
+  0.80 → 0.85 is not shipped as an improvement.
+- `verdict(n)` says what a sample size licenses: below 10, not a measurement;
+  10–24, a smoke test that must not be quoted; 25–49, per-slice shape but too
+  noisy to gate a merge; 50+, gateable. It reads only `n`, so a good score
+  cannot buy conclusions the sample size does not support.
+- `reached`, `progress` and `render` report where the sittings stand. `render`
+  keeps score, interval and verdict on one line so they are never separated.
 """
 
 from __future__ import annotations
@@ -80,12 +64,14 @@ class Interval:
         return high - low
 
     def indistinguishable_from(self, other: Interval) -> bool:
+        """True when the two 95% intervals overlap, so neither score is better."""
         low, high = self.bounds
         other_low, other_high = other.bounds
         return low <= other_high and other_low <= high
 
 
 def wilson(passed: int, n: int, z: float = Z) -> tuple[float, float]:
+    """The Wilson score interval for `passed` out of `n`, clamped to [0, 1]."""
     if n <= 0:
         raise MilestoneError("no rows scored — there is nothing to put an interval on")
     if not 0 <= passed <= n:
@@ -97,6 +83,7 @@ def wilson(passed: int, n: int, z: float = Z) -> tuple[float, float]:
 
 
 def verdict(n: int) -> str:
+    """What a score from `n` rows may be used for. Reads `n` only, never the score."""
     if n < MILESTONES[0]:
         return "not yet a measurement - finish the first ten"
     if n < MILESTONES[1]:
