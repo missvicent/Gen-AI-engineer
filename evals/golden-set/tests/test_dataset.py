@@ -12,6 +12,7 @@ from src.dataset import (
     leaked_questions,
     load_corpus,
     load_golden,
+    missing_provenance,
     near_duplicates,
     slice_counts,
     validate,
@@ -94,6 +95,12 @@ def test_abstention_flag_must_agree_with_the_slice():
 def test_provenance_is_required():
     bare = [replace(r, source="", labeled_by="", labeled_on="") for r in rows()[:1]]
     assert any("missing provenance" in p for p in validate(bare, chunks()))
+
+
+def test_each_provenance_field_is_required_on_its_own():
+    row = rows()[0]
+    for field in ("source", "labeled_by", "labeled_on"):
+        assert missing_provenance([replace(row, **{field: ""})]) == [row.id], field
 
 
 def _corpus_records():

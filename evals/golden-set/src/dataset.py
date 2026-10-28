@@ -109,7 +109,7 @@ def slice_counts(rows: list[GoldenRow]) -> dict[str, int]:
 
 
 def missing_provenance(rows: list[GoldenRow]) -> list[str]:
-    return [r.id for r in rows if not (r.source or r.labeled_by or r.labeled_on)]
+    return [r.id for r in rows if not all((r.source, r.labeled_by, r.labeled_on))]
 
 
 def unsupported_answerable(rows: list[GoldenRow]) -> list[str]:
