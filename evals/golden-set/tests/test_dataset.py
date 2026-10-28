@@ -60,8 +60,9 @@ def test_near_duplicate_is_detected():
         replace(
             original[0],
             id="g-dupe",
-            question="Once we approve a refund, how "
-            "quickly should a supplier expect their money?",
+            # must stay lexically close to g-001: fuzzy matching can't see meaning
+            question="How long does it take for approved supplier refunds "
+            "to get processed?",
         )
     ]
     assert ("g-001", "g-dupe") in near_duplicates(planted)

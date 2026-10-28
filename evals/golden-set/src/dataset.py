@@ -8,8 +8,8 @@ Two jobs in this lesson, in this order:
          from rapidfuzz import fuzz
          from rapidfuzz.utils import default_process
 
-         fuzz.token_set_ratio(a, b, processor=default_process)   # same question, reworded
-         fuzz.partial_ratio(q, chunk, processor=default_process) # question lifted from a chunk
+         fuzz.token_set_ratio(a, b, processor=default_process)    # reworded question
+         fuzz.partial_ratio(q, chunk, processor=default_process)  # lifted from a chunk
 
      `processor=default_process` lowercases and strips punctuation. Without it a
      capital letter is enough to hide a true duplicate.
@@ -23,8 +23,12 @@ Reference: ../after/src/dataset.py
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from rapidfuzz import fuzz
+from rapidfuzz.utils import default_process
 
 SLICES = ("semantic", "exact", "multi_hop", "unanswerable", "adversarial")
 
@@ -47,58 +51,136 @@ class GoldenRow:
 
 
 def load_golden(path: str | Path) -> list[GoldenRow]:
-    """TODO 1: read the jsonl into GoldenRow objects; raise on duplicate ids."""
-    raise NotImplementedError
+    rows = [
+        GoldenRow(**json.loads(line))
+        for line in Path(path).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    if len({r.id for r in rows}) != len(rows):
+        raise ValueError("Duplicate row ids found in golden set")
+    return rows
 
 
 def load_corpus(path: str | Path) -> list[str]:
-    """TODO 2: return the chunk texts — the leakage check needs them."""
-    raise NotImplementedError
+    return [
+        json.loads(line)["text"]
+        for line in Path(path).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def near_duplicates(
     rows: list[GoldenRow], threshold: float = DUPLICATE_THRESHOLD
 ) -> list[tuple[str, str]]:
-    """TODO 3: every pair of ids whose questions are the same question, reworded."""
-    raise NotImplementedError
+    """Pairs of questions that are the same question, reworded."""
+    pairs = []
+    for i, a in enumerate(rows):
+        for b in rows[i + 1 :]:
+            if (
+                fuzz.token_set_ratio(a.question, b.question, processor=default_process)
+                >= threshold
+            ):
+                pairs.append((a.id, b.id))
+    return pairs
 
 
 def leaked_questions(
     rows: list[GoldenRow], chunks: list[str], threshold: float = LEAKAGE_THRESHOLD
 ) -> list[str]:
-    """TODO 4: ids whose question is copy-pasted out of a chunk."""
-    raise NotImplementedError
+    """Rows whose question is copy-pasted out of a chunk.
+
+    Those rows score well for the wrong reason. The retriever is matching the
+    question's own source text, so you're measuring string overlap and calling it
+    retrieval quality.
+    """
+    return [
+        r.id
+        for r in rows
+        if any(
+            fuzz.partial_ratio(r.question, chunk, processor=default_process)
+            >= threshold
+            for chunk in chunks
+        )
+    ]
 
 
 def slice_counts(rows: list[GoldenRow]) -> dict[str, int]:
-    """TODO 5: how many rows in each of SLICES (zeros included — that's the point)."""
-    raise NotImplementedError
+    return {s: sum(1 for r in rows if r.slice == s) for s in SLICES}
 
 
 def missing_provenance(rows: list[GoldenRow]) -> list[str]:
-    """TODO 6: ids lacking source / labeled_by / labeled_on."""
-    raise NotImplementedError
+    return [r.id for r in rows if not (r.source or r.labeled_by or r.labeled_on)]
 
 
 def unsupported_answerable(rows: list[GoldenRow]) -> list[str]:
-    """TODO 7: answerable ids with no supporting_doc_ids (no judge-free metrics without it)."""
-    raise NotImplementedError
+    """Answerable rows must name the docs that support them.
+
+    That single field is what lets you compute retrieval metrics with no judge:
+    did the supporting docs show up in the top-k? is a set membership test.
+    """
+    return [r.id for r in rows if not r.expects_abstention and not r.supporting_doc_ids]
 
 
 def validate(rows: list[GoldenRow], chunks: list[str]) -> list[str]:
-    """TODO 8: collect every problem as a human-readable string.
+    """Collect every problem as a human-readable string.
 
     Cover: empty slices, too few unanswerable rows (< MIN_UNANSWERABLE),
     near-duplicates, leakage, missing provenance, answerable rows with no
     supporting docs, unknown slice names, and `expects_abstention` disagreeing
     with the `unanswerable` slice.
     """
-    raise NotImplementedError
+    problems: list[str] = []
+
+    counts = slice_counts(rows)
+    problems += [f"slice {s} is empty" for s, n in counts.items() if n == 0]
+
+    unanswerable = sum(r.expects_abstention for r in rows)
+    if unanswerable < MIN_UNANSWERABLE:
+        problems.append(
+            f"only {unanswerable} unanswerable rows (need >= {MIN_UNANSWERABLE}): "
+            "the abstain path goes untested"
+        )
+
+    problems += [
+        f"near-duplicate questions: {a} ~ {b}" for a, b in near_duplicates(rows)
+    ]
+    problems += [
+        f"question leaked from chunk: {rid}" for rid in leaked_questions(rows, chunks)
+    ]
+    problems += [f"missing provenance: {rid}" for rid in missing_provenance(rows)]
+    problems += [
+        f"answerable rows with no supporting docs: {rid}"
+        for rid in unsupported_answerable(rows)
+    ]
+
+    for row in rows:
+        if row.slice not in SLICES:
+            problems.append(f"unknown slice: {row.slice} on {row.id}")
+        if row.expects_abstention != (row.slice == "unanswerable"):
+            problems.append(
+                f"{row.id}: expects_abstention and slice 'unanswerable' must agree"
+            )
+
+    return problems
 
 
 def report(rows: list[GoldenRow], chunks: list[str]) -> str:
-    """TODO 9: counts per slice plus the problem list — the PR-comment view."""
-    raise NotImplementedError
+    """Markdown block to paste into the PR that grows the golden set."""
+    counts = slice_counts(rows)
+    problems = validate(rows, chunks)
+    total = len(rows)
+
+    status = "✅ valid" if not problems else f"❌ {len(problems)} problem(s)"
+    lines = [
+        f"**Golden set: {total} rows, {status}**",
+        "",
+        "| slice | rows | share |",
+        "|---|---:|---:|",
+        *(f"| `{s}` | {n} | {n / total:.0%} |" for s, n in counts.items()),
+    ]
+    if problems:
+        lines += ["", "**Problems**", *(f"- {p}" for p in problems)]
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":
