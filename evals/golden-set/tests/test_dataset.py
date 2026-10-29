@@ -5,8 +5,9 @@ A suite whose golden set is wrong produces confident nonsense.
 """
 
 from dataclasses import replace
+from pathlib import Path
 
-from src.dataset import (
+from golden_set.dataset import (
     MIN_UNANSWERABLE,
     SLICES,
     leaked_questions,
@@ -19,8 +20,9 @@ from src.dataset import (
     validate,
 )
 
-GOLDEN = "evals/golden.jsonl"
-CORPUS = "evals/corpus.jsonl"
+EVALS = Path(__file__).parent.parent / "evals"
+GOLDEN = EVALS / "golden.jsonl"
+CORPUS = EVALS / "corpus.jsonl"
 
 
 def rows():
@@ -106,7 +108,6 @@ def test_each_provenance_field_is_required_on_its_own():
 
 def _corpus_records():
     import json
-    from pathlib import Path
 
     return [
         json.loads(line)

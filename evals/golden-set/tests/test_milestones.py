@@ -8,7 +8,7 @@ most expensive kind of teaching material.
 from __future__ import annotations
 
 import pytest
-from src.milestones import (
+from golden_set.milestones import (
     MILESTONES,
     Interval,
     MilestoneError,

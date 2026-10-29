@@ -16,7 +16,7 @@ Two jobs in this lesson, in this order:
 
   2. Fix `evals/golden.jsonl` until `validate()` returns an empty list. The
      shipped file has real problems in it — your checks are how you find them,
-     and `python -m src.dataset` prints the report.
+     and `python -m golden_set.dataset` prints the report.
 
 Reference: ../after/src/dataset.py
 """
