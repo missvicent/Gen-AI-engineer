@@ -62,7 +62,7 @@ class VectorIndex:
         return cls(chunks, embedder(chunks), embedder)
 
     def search(self, query: str, k: int = 3) -> list[tuple[str, float]]:
-        """TODO 4: embed the query, dot it against the matrix, return top-k.
+        """Embed the query, dot it against the matrix, return top-k.
 
         Because everything is normalized, the dot product *is* cosine similarity —
         no division, no loop over rows.

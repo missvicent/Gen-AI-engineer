@@ -50,6 +50,7 @@ pythonpath = [
     "foundations/structured-extraction",
     "foundations/token-cost-meter",
     "evals/golden-set",
+    "evals/llm-judge",
 ]
 # importlib mode lets same-named test files (test_integration.py, ...) coexist across lessons.
 addopts = "--import-mode=importlib"
