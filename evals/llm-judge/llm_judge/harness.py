@@ -1,9 +1,8 @@
-"""TODO: build the harness so that everything EXCEPT the judge is testable offline.
+"""Build the harness so that everything EXCEPT the judge is testable offline.
 
-The judge is injected (see the `Judge` protocol below). That one decision is what
-lets `make test` cover the grading logic with no model, no key and no network — and
-it is the difference between an eval suite you run on every push and one you run
-when you remember to.
+The judge is injected. That one decision is what lets `make test` cover the grading
+logic with no model, no key and no network — and it is the difference between an
+eval suite you run on every push and one you run when you remember to.
 
 Two rules the tests will hold you to:
 
@@ -18,7 +17,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Protocol
 
@@ -78,10 +77,7 @@ class SuiteResult:
     instrument: dict[str, str]
 
     def to_json(self) -> str:
-        """TODO 7: serialize overall + by_slice + instrument + rows.
-
-        (`dataclasses.asdict`)"""
-        raise NotImplementedError
+        return json.dumps(asdict(self))
 
 
 def load_golden(path: str | Path) -> list[Row]:
@@ -165,5 +161,8 @@ def run_suite(rows: list[Row], pipeline: Pipeline, judge: Judge) -> SuiteResult:
 
 
 def format_table(result: SuiteResult) -> str:
-    """TODO 6: print one line per slice, then OVERALL, then the judged-row count."""
-    raise NotImplementedError
+    return "\n".join(
+        [f"{s}: {result.by_slice[s]}" for s in result.by_slice]
+        + [f"Overall: {result.overall}"]
+        + [f"judged rows: {len([r for r in result.rows if r.judged])}"]
+    )

@@ -7,7 +7,7 @@ Verified API (ragas 0.4.3, 2026-07-31) — the current classes live in
     from ragas.llms import llm_factory
     from ragas.metrics.collections import ContextRecall, Faithfulness
 
-    judge = llm_factory("qwen3-coder:30b",
+    judge = llm_factory("qwen2.5:7b-instruct",
                         client=AsyncOpenAI(base_url="http://localhost:11434/v1",
                                            api_key="ollama"),
                         temperature=0)                    # pin the ruler
@@ -19,15 +19,18 @@ favour of the path above. Metric instances have both `ascore()` and a synchronou
 `score()`; both return a `MetricResult`, so read `.value`.
 
 Run it with:  make test-integration      (needs Ollama running)
-
-Reference: ../after/src/ragas_judge.py
 """
 
 from __future__ import annotations
 
+import importlib.metadata
 from dataclasses import dataclass
 
-DEFAULT_MODEL = "qwen3-coder:30b"
+from openai import AsyncOpenAI
+from ragas.llms import llm_factory
+from ragas.metrics.collections import ContextRecall, Faithfulness
+
+DEFAULT_MODEL = "qwen2.5:7b-instruct"
 OLLAMA_BASE_URL = "http://localhost:11434/v1"
 
 
@@ -38,22 +41,34 @@ class RagasJudge:
     temperature: float = 0.0
 
     def __post_init__(self) -> None:
-        """TODO 1: build the pinned judge and the two metric objects."""
-        raise NotImplementedError
+        self.judge = llm_factory(
+            self.model,
+            client=AsyncOpenAI(base_url=self.base_url, api_key="ollama"),
+            temperature=self.temperature,
+        )
+        self.faithfulness_metric = Faithfulness(llm=self.judge)
+        self.context_recall_metric = ContextRecall(llm=self.judge)
 
     def faithfulness(self, question: str, answer: str, contexts: list[str]) -> float:
-        """TODO 2: score faithfulness; return the MetricResult's value as a float."""
-        raise NotImplementedError
+        result = self.faithfulness_metric.score(
+            user_input=question, response=answer, retrieved_contexts=contexts
+        )
+
+        return float(result.value)
 
     def context_recall(
         self, question: str, contexts: list[str], reference: str
     ) -> float:
-        """TODO 3: score context recall against the reference answer."""
-        raise NotImplementedError
+        result = self.context_recall_metric.score(
+            user_input=question, retrieved_contexts=contexts, reference=reference
+        )
+
+        return float(result.value)
 
     def describe(self) -> dict[str, str]:
-        """TODO 4: model, temperature, endpoint and the installed ragas version.
-
-        `importlib.metadata.version("ragas")` — record the instrument, always.
-        """
-        raise NotImplementedError
+        return {
+            "judge_model": self.model,
+            "judge_temperature": str(self.temperature),
+            "base_url": f"{self.base_url}",
+            "ragas_version": importlib.metadata.version("ragas"),
+        }
