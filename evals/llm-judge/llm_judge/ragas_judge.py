@@ -1,25 +1,4 @@
-"""TODO: the real judge. Implement the `Judge` protocol with RAGAS metrics.
-
-Verified API (ragas 0.4.3, 2026-07-31) — the current classes live in
-`ragas.metrics.collections` and take an explicit judge:
-
-    from openai import AsyncOpenAI
-    from ragas.llms import llm_factory
-    from ragas.metrics.collections import ContextRecall, Faithfulness
-
-    judge = llm_factory("qwen2.5:7b-instruct",
-                        client=AsyncOpenAI(base_url="http://localhost:11434/v1",
-                                           api_key="ollama"),
-                        temperature=0)                    # pin the ruler
-    Faithfulness(llm=judge).score(user_input=q, response=answer,
-                                  retrieved_contexts=contexts).value
-
-Note: `from ragas.metrics import Faithfulness` still imports but is deprecated in
-favour of the path above. Metric instances have both `ascore()` and a synchronous
-`score()`; both return a `MetricResult`, so read `.value`.
-
-Run it with:  make test-integration      (needs Ollama running)
-"""
+"""`Judge` protocol with RAGAS metric. RAGAS is a framework for evaluating RAG systems."""
 
 from __future__ import annotations
 
