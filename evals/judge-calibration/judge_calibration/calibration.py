@@ -118,12 +118,13 @@ def calibrate(rows: list[LabeledRow], threshold: float = 0.5) -> Calibration:
 
 
 def best_threshold(rows: list[LabeledRow], step: float = 0.05) -> Calibration:
-    """TODO 4: sweep the cut point and return the calibration with the best kappa.
-
-    0.5 is a round number, not a decision — and the judge already scored every row,
-    so sweeping costs nothing.
-    """
-    raise NotImplementedError
+    return max(
+        (
+            calibrate(rows, threshold=round(i * step, 2))
+            for i in range(int(1 / step) + 1)
+        ),
+        key=lambda x: x.kappa,
+    )
 
 
 def interpret(kappa: float) -> str:
