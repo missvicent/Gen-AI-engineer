@@ -24,6 +24,7 @@ dependencies = [
     "uvicorn>=0.53.0",
     "opentelemetry-distro>=0.65b0",
     "opentelemetry-exporter-otlp>=1.44.0",
+    "scikit-learn>=1.5,<2",
 ]
 
 [dependency-groups]
@@ -51,6 +52,7 @@ pythonpath = [
     "foundations/token-cost-meter",
     "evals/golden-set",
     "evals/llm-judge",
+    "evals/judge-calibration",
 ]
 # importlib mode lets same-named test files (test_integration.py, ...) coexist across lessons.
 addopts = "--import-mode=importlib"
