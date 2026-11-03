@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, fields
+from math import sqrt
 from pathlib import Path
 
 from sklearn.metrics import cohen_kappa_score
@@ -63,14 +64,7 @@ class Calibration:
 
     @property
     def tolerance(self) -> float:
-        """TODO 7: the smallest SUITE-LEVEL move worth failing CI over.
-
-        Per-row disagreement is `1 - agreement`. Averaged over n rows that noise
-        shrinks like `disagreement / sqrt(n)` — anything smaller than that is the
-        judge having a different opinion than you on a couple of rows, not a
-        regression. Floor it at 0.01 and round to 2 dp.
-        """
-        raise NotImplementedError
+        return round(max((1 - self.agreement) / sqrt(self.n), 0.01), 2)
 
 
 def load_labeled(path: str | Path) -> list[LabeledRow]:
@@ -128,28 +122,30 @@ def best_threshold(rows: list[LabeledRow], step: float = 0.05) -> Calibration:
 
 
 def interpret(kappa: float) -> str:
-    """TODO 5: the first BANDS advice whose edge the kappa falls under."""
-    raise NotImplementedError
+    return next(advice for edge, advice in BANDS if kappa < edge)
 
 
 def disagreement_rows(
     rows: list[LabeledRow], calibration: Calibration
 ) -> list[LabeledRow]:
-    """TODO 8: the rows you and the judge disagreed on — the real deliverable.
-
-    Each one is a bad rubric, a bad label, or a question too ambiguous to belong in
-    the golden set. Reading them is the work; the kappa is just the receipt.
-    """
-    raise NotImplementedError
+    ids = set(calibration.disagreements)
+    return [row for row in rows if row.id in ids]
 
 
 def report(rows: list[LabeledRow]) -> str:
-    """TODO 9: default vs best threshold, the verdict, the gate decision, tolerance.
-
-    Must mention "gate on this judge?", "regression tolerance:" and "best kappa" —
-    this text is what you keep next to your scores.
+    calibration = calibrate(rows)
+    best = best_threshold(rows)
+    return f"""
+    default threshold: {calibration.threshold}
+    default agreement: {calibration.agreement:.2f}
+    default kappa: {calibration.kappa:.2f}
+    best threshold: {best.threshold}
+    best agreement: {best.agreement:.2f}
+    best kappa: {best.kappa:.2f}
+    verdict: {interpret(best.kappa)}
+    gate on this judge? {"yes" if best.gatable else "no"}
+    regression tolerance: {best.tolerance}
     """
-    raise NotImplementedError
 
 
 if __name__ == "__main__":
