@@ -36,8 +36,7 @@ Measured on my 35 rows, built from the golden set with `RagasJudge.faithfulness`
 | Regression tolerance | 0.01 |
 | Labels | 29 pass, 6 fail |
 
-The report prints 0.05 as the best threshold. κ is the same from 0.05 to 0.50 and
-`best_threshold` returns the lowest tied value, so I quote 0.50.
+κ is the same from 0.05 to 0.50, and `best_threshold` returns the strictest tied value.
 
 ## Read this before trusting the κ
 
