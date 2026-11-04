@@ -1,22 +1,22 @@
-"""TODO: measure how much your judge deserves to be trusted.
+"""Measure how much a judge deserves to be trusted.
 
-You have 40 rows in `evals/labeled.jsonl` that a human (you) labeled `pass`/`fail`,
-each with the judge's raw score. Turn that into a decision: can this judge gate
-merges, at what threshold, and with what regression tolerance?
+Compares the judge's raw scores with human `pass`/`fail` labels from a JSONL file
+(`evals/labeled.jsonl` unless you pass another path), then decides if the judge can
+gate merges, at what threshold, and with what regression tolerance.
 
-Report both numbers, and know why:
+The report uses both numbers, because agreement alone can mislead:
 
-  * **agreement** — share of rows where you and the judge said the same thing. A
-    liar under class imbalance: with 90% passes, a judge that always says "pass"
+  * **agreement** — share of rows where the human and the judge said the same thing.
+    A liar under class imbalance: with 90% passes, a judge that always says "pass"
     scores 0.90.
-  * **Cohen's kappa** — the same overlap corrected for chance agreement. Use
-    `sklearn.metrics.cohen_kappa_score(human, judge, labels=["pass", "fail"])`.
-    Do not hand-roll inter-rater statistics.
+  * **Cohen's kappa** — the same overlap corrected for chance agreement, computed
+    with `sklearn.metrics.cohen_kappa_score`.
 """
 
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass, fields
 from math import sqrt
 from pathlib import Path
@@ -149,4 +149,5 @@ def report(rows: list[LabeledRow]) -> str:
 
 
 if __name__ == "__main__":
-    print(report(load_labeled("evals/labeled.jsonl")))
+    path = sys.argv[1] if len(sys.argv) > 1 else "evals/labeled.jsonl"
+    print(report(load_labeled(path)))
