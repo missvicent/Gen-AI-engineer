@@ -13,3 +13,6 @@ CLAUDE.md
 .claude/
 CONVENTIONS.md
 .archify/
+
+# Local design docs
+docs/superpowers/

@@ -53,6 +53,7 @@ pythonpath = [
     "evals/golden-set",
     "evals/llm-judge",
     "evals/judge-calibration",
+    "evals/ci-gate",
 ]
 # importlib mode lets same-named test files (test_integration.py, ...) coexist across lessons.
 addopts = "--import-mode=importlib"
