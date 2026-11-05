@@ -18,8 +18,9 @@ not to run it on every push.
 
 from __future__ import annotations
 
+import json
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 
 BARS = {"faithfulness": 0.85, "context_recall": 0.80}
@@ -40,22 +41,28 @@ class Run:
 
     @classmethod
     def load(cls, path: str | Path) -> Run:
-        """TODO 1: read a results/baseline JSON file into a Run."""
-        raise NotImplementedError
+        valid_fields = {f.name for f in fields(cls)}
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        return cls(**{k: v for k, v in data.items() if k in valid_fields})
 
 
 def check_bars(run: Run, bars: dict[str, float] = BARS) -> list[str]:
-    """TODO 2: one readable string per metric that sits below its bar."""
-    raise NotImplementedError
+    return [
+        f"{metric} {run.overall[metric]:.3f} is below the bar of {bar:.2f}"
+        for metric, bar in bars.items()
+        if run.overall[metric] < bar
+    ]
 
 
 def check_instrument(run: Run, baseline: Run) -> list[str]:
-    """TODO 3: if any instrument key changed, refuse to compare.
-
-    The message must contain "instrument changed" and "re-baseline" — a reviewer
-    should be able to act on it without opening this file.
-    """
-    raise NotImplementedError
+    problems = []
+    for key in sorted(run.instrument.keys() | baseline.instrument.keys()):
+        if run.instrument.get(key) != baseline.instrument.get(key):
+            problems.append(
+                f"instrument changed: {key} from {baseline.instrument.get(key)} "
+                f"to {run.instrument.get(key)} - re-baseline in a reviewed commit"
+            )
+    return problems
 
 
 def check_regressions(
@@ -65,8 +72,50 @@ def check_regressions(
 
     Also catch a slice that disappeared, and mark a collapse (dropping under
     COLLAPSE_FLOOR from above it) so nobody mistakes it for drift.
+
+    The baseline decides what must exist, so only its slices and metrics are
+    checked. Anything new in the run has nothing to regress from and passes.
     """
-    raise NotImplementedError
+    problems = []
+    for metric in sorted(baseline.overall):
+        if metric not in run.overall:
+            problems.append(f"metric {metric} is missing in the run")
+            continue
+        if run.overall.get(metric) < baseline.overall.get(metric) - tolerance:
+            problems.append(
+                f"{metric} regressed: {run.overall.get(metric):.3f} is below "
+                f"the baseline of {baseline.overall.get(metric):.3f} "
+                f"- {tolerance:.2f}"
+            )
+
+    for slice in baseline.by_slice.keys():
+        if slice not in run.by_slice:
+            problems.append(f"slice '{slice}' disappeared")
+            continue
+        for metric in sorted(baseline.by_slice[slice]):
+            if metric not in run.by_slice[slice]:
+                problems.append(f"slice '{slice}' {metric} is missing in the run")
+                continue
+            if (
+                baseline.by_slice.get(slice).get(metric) >= COLLAPSE_FLOOR
+                and run.by_slice.get(slice).get(metric) < COLLAPSE_FLOOR
+            ):
+                problems.append(
+                    f"slice '{slice}' {metric} COLLAPSED: "
+                    f"{run.by_slice.get(slice).get(metric):.3f} is below the collapse "
+                    f"floor of {COLLAPSE_FLOOR:.2f}"
+                )
+            elif (
+                run.by_slice.get(slice).get(metric)
+                < baseline.by_slice.get(slice).get(metric) - tolerance
+            ):
+                problems.append(
+                    f"slice '{slice}' {metric} regressed: "
+                    f"{run.by_slice.get(slice).get(metric):.3f} is below the baseline "
+                    f"of {baseline.by_slice.get(slice).get(metric):.3f} "
+                    f"- {tolerance:.2f}"
+                )
+    return problems
 
 
 def gate(run: Run, baseline: Run, tolerance: float = TOLERANCE) -> list[str]:

@@ -8,7 +8,16 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
-from ci_gate.gate import BARS, TOLERANCE, Run, check_bars, diff_table, gate, main
+from ci_gate.gate import (
+    BARS,
+    TOLERANCE,
+    Run,
+    check_bars,
+    check_regressions,
+    diff_table,
+    gate,
+    main,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 RESULTS = FIXTURES / "results.json"
@@ -145,3 +154,23 @@ def test_a_missing_overall_metric_fails():
 
 def test_main_rejects_wrong_usage():
     assert main([]) == 2
+
+
+def test_only_a_metric_the_baseline_has_can_go_missing():
+    """A new metric has no baseline to regress from; a removed one must still fail."""
+    slices = baseline().by_slice
+    added = replace(
+        baseline(),
+        overall={**baseline().overall, "new_metric": 0.9},
+        by_slice={**slices, "exact": {**slices["exact"], "new_metric": 0.9}},
+    )
+    assert check_regressions(added, baseline()) == []
+
+    removed = replace(
+        baseline(),
+        overall={"faithfulness": baseline().overall["faithfulness"]},
+        by_slice={**slices, "exact": {"faithfulness": slices["exact"]["faithfulness"]}},
+    )
+    problems = check_regressions(removed, baseline())
+    assert len(problems) == 2
+    assert all("context_recall" in p and "missing" in p for p in problems)
