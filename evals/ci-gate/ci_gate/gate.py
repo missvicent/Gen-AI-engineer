@@ -119,8 +119,11 @@ def check_regressions(
 
 
 def gate(run: Run, baseline: Run, tolerance: float = TOLERANCE) -> list[str]:
-    """TODO 5: every reason to block the merge. Empty list means it may land."""
-    raise NotImplementedError
+    problems = []
+    problems.extend(check_bars(run, BARS))
+    problems.extend(check_instrument(run, baseline))
+    problems.extend(check_regressions(run, baseline, tolerance))
+    return problems
 
 
 def diff_table(run: Run, baseline: Run, tolerance: float = TOLERANCE) -> str:
