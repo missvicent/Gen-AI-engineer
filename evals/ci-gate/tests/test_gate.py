@@ -174,3 +174,15 @@ def test_only_a_metric_the_baseline_has_can_go_missing():
     problems = check_regressions(removed, baseline())
     assert len(problems) == 2
     assert all("context_recall" in p and "missing" in p for p in problems)
+
+
+def test_a_changed_judge_skips_the_comparison():
+    """Scores from a different judge can't be compared, so a drop isn't a reason."""
+    other_judge = replace(
+        run(),
+        instrument={**run().instrument, "judge_model": "some-other-model:70b"},
+        overall={**run().overall, "faithfulness": 0.86},  # would regress otherwise
+    )
+    problems = gate(other_judge, baseline())
+    assert len(problems) == 1
+    assert "instrument changed" in problems[0]

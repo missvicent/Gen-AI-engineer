@@ -50,7 +50,7 @@ def check_bars(run: Run, bars: dict[str, float] = BARS) -> list[str]:
     return [
         f"{metric} {run.overall[metric]:.3f} is below the bar of {bar:.2f}"
         for metric, bar in bars.items()
-        if run.overall[metric] < bar
+        if metric in run.overall and run.overall[metric] < bar
     ]
 
 
@@ -119,10 +119,14 @@ def check_regressions(
 
 
 def gate(run: Run, baseline: Run, tolerance: float = TOLERANCE) -> list[str]:
+    if not run.overall or not baseline.overall:
+        return ["zero rows: run or baseline has no overall metrics"]
     problems = []
     problems.extend(check_bars(run, BARS))
-    problems.extend(check_instrument(run, baseline))
-    problems.extend(check_regressions(run, baseline, tolerance))
+    changed = check_instrument(run, baseline)
+    problems.extend(changed)
+    if not changed:
+        problems.extend(check_regressions(run, baseline, tolerance))
     return problems
 
 
