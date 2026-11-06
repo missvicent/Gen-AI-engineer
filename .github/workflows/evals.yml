@@ -26,6 +26,7 @@ jobs:
           enable-cache: true
       - run: make check # ruff lint + format check
       - run: make test # the 20 gate tests, offline
-      - run: make gate # the committed evals/results.json vs evals/baseline.json
-      - if: failure()
-        run: echo "::notice::Read the diff table above — it names the slice that moved."
+      - run: make gate 2>&1 | tee gate.txt # the committed evals/results.json vs evals/baseline.json
+        shell: bash # adds pipefail, so a failing gate still fails the job through tee
+      - if: always() # show the diff table on the run page, pass or fail
+        run: printf '```\n%s\n```\n' "$(cat gate.txt)" >> "$GITHUB_STEP_SUMMARY"
