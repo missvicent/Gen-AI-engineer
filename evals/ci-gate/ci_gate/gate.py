@@ -100,12 +100,12 @@ def check_regressions(
                 problems.append(f"slice '{slice}' {metric} is missing in the run")
                 continue
             if (
-                baseline.by_slice.get(slice).get(metric) >= COLLAPSE_FLOOR
-                and run.by_slice.get(slice).get(metric) < COLLAPSE_FLOOR
+                baseline.by_slice[slice][metric] >= COLLAPSE_FLOOR
+                and run.by_slice[slice][metric] < COLLAPSE_FLOOR
             ):
                 problems.append(
                     f"slice '{slice}' {metric} COLLAPSED: "
-                    f"{run.by_slice.get(slice).get(metric):.3f} is below the collapse "
+                    f"{run.by_slice[slice][metric]:.3f} is below the collapse "
                     f"floor of {COLLAPSE_FLOOR:.2f}"
                 )
             elif (
@@ -114,8 +114,8 @@ def check_regressions(
             ):
                 problems.append(
                     f"slice '{slice}' {metric} regressed: "
-                    f"{run.by_slice.get(slice).get(metric):.3f} is below the baseline "
-                    f"of {baseline.by_slice.get(slice).get(metric):.3f} "
+                    f"{run.by_slice[slice][metric]:.3f} is below the baseline "
+                    f"of {baseline.by_slice[slice][metric]:.3f} "
                     f"- {tolerance:.2f}"
                 )
     return problems
@@ -162,10 +162,13 @@ def _row(
     tolerance: float,
 ) -> str:
     status = _status(baseline_value, run_value, tolerance)
-    both = baseline_value is not None and run_value is not None
     base_txt = f"{baseline_value:<10.3f}" if baseline_value is not None else "-"
     now_txt = f"{run_value:<10.3f}" if run_value is not None else "-"
-    delta_txt = f"{run_value - baseline_value:<+10.3f}" if both else "-"
+    delta_txt = (
+        f"{run_value - baseline_value:<+10.3f}"
+        if run_value is not None and baseline_value is not None
+        else "-"
+    )
     return f"{metric:<34} {base_txt:<10} {now_txt:<10} {delta_txt:<10} {status}"
 
 
