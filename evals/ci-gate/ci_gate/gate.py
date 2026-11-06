@@ -71,6 +71,11 @@ def check_instrument(run: Run, baseline: Run) -> list[str]:
     return problems
 
 
+def _delta(base: float, now: float) -> float:
+    """Rounded to 3 decimals, so a drop of exactly the tolerance isn't float noise."""
+    return round(now - base, 3)
+
+
 def check_regressions(
     run: Run, baseline: Run, tolerance: float = TOLERANCE
 ) -> list[str]:
@@ -79,7 +84,7 @@ def check_regressions(
         if metric not in run.overall:
             problems.append(f"metric {metric} is missing in the run")
             continue
-        if run.overall.get(metric) < baseline.overall.get(metric) - tolerance:
+        if _delta(baseline.overall[metric], run.overall[metric]) < -tolerance:
             problems.append(
                 f"{metric} regressed: {run.overall.get(metric):.3f} is below "
                 f"the baseline of {baseline.overall.get(metric):.3f} "
@@ -104,8 +109,8 @@ def check_regressions(
                     f"floor of {COLLAPSE_FLOOR:.2f}"
                 )
             elif (
-                run.by_slice.get(slice).get(metric)
-                < baseline.by_slice.get(slice).get(metric) - tolerance
+                _delta(baseline.by_slice[slice][metric], run.by_slice[slice][metric])
+                < -tolerance
             ):
                 problems.append(
                     f"slice '{slice}' {metric} regressed: "
@@ -169,7 +174,7 @@ def _status(base: float | None, now: float | None, tolerance: float) -> str:
         return "MISSING"
     if base is None:
         return "NEW"
-    delta = now - base
+    delta = _delta(base, now)
     if delta < -tolerance:
         return "REGRESSED"
     if delta < 0:
@@ -183,12 +188,20 @@ def main(argv: list[str] | None = None) -> int:
     if len(argv) != 2:
         print("Usage: python gate.py <run_file> <baseline_file>")
         return 2
-    run = Run.load(argv[0])
-    baseline = Run.load(argv[1])
+    runs = []
+    for path in argv:
+        try:
+            runs.append(Run.load(path))
+        except (OSError, ValueError, TypeError) as error:
+            print(f"could not read {path}: {error}")
+            return 2
+    run, baseline = runs
     problems = gate(run, baseline)
     print(diff_table(run, baseline))
     if problems:
         print("gate FAILED:")
+        for problem in problems:
+            print(f"  - {problem}")
         return 1
     print("gate passed")
     return 0

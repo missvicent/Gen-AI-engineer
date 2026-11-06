@@ -186,3 +186,51 @@ def test_a_changed_judge_skips_the_comparison():
     problems = gate(other_judge, baseline())
     assert len(problems) == 1
     assert "instrument changed" in problems[0]
+
+
+def test_a_drop_of_exactly_the_tolerance_passes_and_one_more_point_fails():
+    """0.90 - 0.87 is -0.030000000000000027 in floats; the gate rounds it first."""
+    slices = baseline().by_slice
+    base = replace(
+        baseline(),
+        overall={**baseline().overall, "faithfulness": 0.90},
+        by_slice={**slices, "semantic": {**slices["semantic"], "faithfulness": 0.90}},
+    )
+
+    def dropped_to(score: float) -> Run:
+        return replace(
+            base,
+            overall={**base.overall, "faithfulness": score},
+            by_slice={
+                **base.by_slice,
+                "semantic": {**base.by_slice["semantic"], "faithfulness": score},
+            },
+        )
+
+    assert gate(dropped_to(0.87), base) == []
+    problems = gate(dropped_to(0.869), base)
+    assert any(p.startswith("faithfulness regressed") for p in problems)
+    assert any("'semantic' faithfulness regressed" in p for p in problems)
+    assert "REGRESSED" not in diff_table(dropped_to(0.87), base)
+
+
+def test_main_prints_every_reason_after_the_table(tmp_path: Path, capsys):
+    raw = json.loads(Path(RESULTS).read_text())
+    raw["instrument"]["judge_model"] = "some-other-model:70b"
+    changed = tmp_path / "results.json"
+    changed.write_text(json.dumps(raw))
+
+    assert main([str(changed), str(BASELINE)]) == 1
+    out = capsys.readouterr().out
+    assert out.index("gate FAILED:") < out.index("instrument changed")
+
+
+def test_main_reports_an_unreadable_file_instead_of_crashing(tmp_path: Path, capsys):
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json")
+
+    assert main([str(tmp_path / "missing.json"), str(BASELINE)]) == 2
+    assert main([str(broken), str(BASELINE)]) == 2
+    out = capsys.readouterr().out
+    assert "missing.json" in out
+    assert "broken.json" in out
