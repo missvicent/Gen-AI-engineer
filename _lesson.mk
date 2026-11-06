@@ -3,7 +3,7 @@
 setup:
 	uv sync
 
-check:
+check::
 	uv run ruff check . && uv run ruff format --check .
 
 format:
