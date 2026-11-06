@@ -1,0 +1,31 @@
+# Fast tier of the lesson 3.4 gate: runs on every pull request, no model needed.
+# The judged nightly tier comes later (tracker task 10).
+
+name: evals
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  fast:
+    name: lint + tests + gate (no model)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals/ci-gate
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: make check # ruff lint + format check
+      - run: make test # the 20 gate tests, offline
+      - run: make gate # the committed evals/results.json vs evals/baseline.json
+      - if: failure()
+        run: echo "::notice::Read the diff table above — it names the slice that moved."
