@@ -56,3 +56,8 @@ if __name__ == "__main__":
     print()
     print(format_table(result))
     print("instrument:", result.instrument)
+    if len(sys.argv) > 2:
+        Path(sys.argv[2]).write_text(result.to_json(), encoding="utf-8")
+        print(f"wrote {sys.argv[2]}")
+    else:
+        print(result.to_json())

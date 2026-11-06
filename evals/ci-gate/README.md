@@ -57,8 +57,37 @@ under the ~2 minute limit past which people start skipping a gate.
 The gate's diff table is also written to the run's job summary, so it shows on the run
 page without opening the logs.
 
-The judged tier (a real judge producing a fresh `results.json`, nightly) is not built
-yet.
+## Judged tier
+
+The fast tier never calls a model. The judged tier does: a real RAGAS judge scores the
+pipeline's answers, and the gate checks the fresh numbers.
+
+```bash
+make eval         # run the judge → evals/judged-results.json (ROWS=10 per slice)
+make judged-gate  # evals/judged-results.json vs evals/judged-baseline.json
+```
+
+- **Judge:** `qwen2.5:7b-instruct` through Ollama, the same on a Mac and on the CI
+  runner, so the instrument (model, URL, RAGAS version) matches and runs compare.
+- **Rows:** 10 per slice. With 2, one flipped row moves a slice by 0.5, far past the
+  0.03 tolerance, and the gate fails at random.
+- **Separate files:** the fast tier keeps the course's shipped run and baseline; the
+  judged tier has its own `judged-baseline.json`. One baseline for both would put
+  toy-pipeline numbers into every PR's gate. `judged-results.json` is git-ignored: it
+  is produced fresh on every run, never committed.
+- **In CI:** the `judged` job runs only from the "Run workflow" button
+  (`workflow_dispatch`). It installs Ollama on the runner, pulls the model, runs
+  `make eval` and `make judged-gate`, writes the table to the job summary and uploads
+  `judged-results.json` (kept 30 days). It costs nothing (public repo, open model),
+  only time: a 7B model on a CPU runner, capped at 120 minutes. To make it nightly as
+  the course says, add `schedule: - cron: "0 4 * * *"` (cron is UTC: 11 pm at UTC−5).
+- **Expected verdict today:** fail on the absolute bars. The pipeline is a toy
+  word-overlap retriever (`keyword_pipeline` in `evals/llm-judge/run_eval.py`), and it
+  is not good enough. The gate saying so is the gate working. Swapping in the real
+  retriever is Workshop 3.
+
+A row the system should answer but where it retrieves nothing scores 0.0 without
+calling the judge (RAGAS refuses empty contexts, and the answer is already known).
 
 ## Re-baselining
 

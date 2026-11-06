@@ -16,3 +16,6 @@ CONVENTIONS.md
 
 # Local design docs
 docs/superpowers/
+
+# Judged-tier output: produced fresh on every run, never committed
+evals/ci-gate/evals/judged-results.json

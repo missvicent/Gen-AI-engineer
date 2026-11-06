@@ -1,5 +1,6 @@
-# Fast tier of the lesson 3.4 gate: runs on every pull request, no model needed.
-# The judged nightly tier comes later (tracker task 10).
+# fast:   every PR and push to main. No model, seconds.
+# judged: the "Run workflow" button. A real judge on the runner's CPU.
+#         Nightly in the course; add back `schedule: - cron: "0 3 * * *"` to make it so.
 
 name: evals
 
@@ -8,6 +9,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # the "Run workflow" button on the Actions page
 
 permissions:
   contents: read
@@ -15,6 +17,7 @@ permissions:
 jobs:
   fast:
     name: lint + tests + gate (no model)
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -24,9 +27,41 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: make check # ruff lint + format check
-      - run: make test # the 20 gate tests, offline
+      - run: make check # ruff lint + format check + pyright
+      - run: make test # the gate tests, offline
       - run: make gate 2>&1 | tee gate.txt # the committed evals/results.json vs evals/baseline.json
         shell: bash # adds pipefail, so a failing gate still fails the job through tee
       - if: always() # show the diff table on the run page, pass or fail
         run: printf '```\n%s\n```\n' "$(cat gate.txt)" >> "$GITHUB_STEP_SUMMARY"
+
+  judged:
+    name: judged suite (qwen2.5:7b-instruct)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120 # a 7B model on CPU is slow; a stuck run must not hang for 6 h
+    defaults:
+      run:
+        working-directory: evals/ci-gate
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: start the judge
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve > /tmp/ollama.log 2>&1 & # harmless if the installer already started it
+          until curl -sf http://localhost:11434/api/version > /dev/null; do sleep 1; done
+          ollama pull qwen2.5:7b-instruct
+      - run: make eval # fresh evals/judged-results.json from the real judge, never a committed one
+      - run: make judged-gate 2>&1 | tee gate.txt # fresh results vs the committed judged baseline
+        shell: bash
+      - if: always()
+        run: printf '```\n%s\n```\n' "$(cat gate.txt)" >> "$GITHUB_STEP_SUMMARY"
+      - name: keep the results, not just the verdict
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: eval-results
+          path: evals/ci-gate/evals/judged-results.json
+          retention-days: 30

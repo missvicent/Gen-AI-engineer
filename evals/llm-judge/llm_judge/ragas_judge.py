@@ -1,4 +1,7 @@
-"""`Judge` protocol with RAGAS metric. RAGAS is a framework for evaluating RAG systems."""
+"""`Judge` protocol with RAGAS metrics.
+
+RAGAS is a framework for evaluating RAG systems.
+"""
 
 from __future__ import annotations
 

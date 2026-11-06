@@ -118,6 +118,15 @@ def score_row(row: Row, answer: str, contexts: list[str], judge: Judge) -> Score
                 scores={m: 0.0 for m in METRICS},
                 judged=False,
             )
+    elif not contexts:
+        # Answerable, but nothing was retrieved: a miss, no judge needed (RAGAS
+        # also refuses empty contexts).
+        return ScoredRow(
+            id=row.id,
+            slice=row.slice,
+            scores={m: 0.0 for m in METRICS},
+            judged=False,
+        )
     else:
         return ScoredRow(
             id=row.id,

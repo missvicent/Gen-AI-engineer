@@ -133,8 +133,9 @@ def test_table_shows_every_slice_and_the_judged_count():
 
 def test_a_pipeline_that_retrieves_nothing_is_visible_per_slice():
     rows = [r for r in load_golden(GOLDEN) if not r.expects_abstention][:4]
-    result = run_suite(rows, lambda q: ("I don't know", []), FixedJudge(0.1))
-    assert result.overall["context_recall"] == 0.1
+    result = run_suite(rows, lambda q: ("I don't know", []), ExplodingJudge())
+    assert result.overall["context_recall"] == 0.0
+    assert not any(r.judged for r in result.rows)
 
 
 def test_row_equality_is_structural():
