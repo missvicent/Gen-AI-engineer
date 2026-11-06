@@ -1,0 +1,36 @@
+{
+  "run_on": "2026-07-31",
+  "commit": "c41d80e",
+  "overall": {
+    "faithfulness": 0.897,
+    "context_recall": 0.881
+  },
+  "by_slice": {
+    "adversarial": {
+      "faithfulness": 0.867,
+      "context_recall": 0.867
+    },
+    "exact": {
+      "faithfulness": 0.92,
+      "context_recall": 0.94
+    },
+    "multi_hop": {
+      "faithfulness": 0.833,
+      "context_recall": 0.8
+    },
+    "semantic": {
+      "faithfulness": 0.917,
+      "context_recall": 0.9
+    },
+    "unanswerable": {
+      "faithfulness": 1.0,
+      "context_recall": 1.0
+    }
+  },
+  "instrument": {
+    "judge_model": "qwen3-coder:30b",
+    "judge_temperature": "0.0",
+    "judge_endpoint": "http://localhost:11434/v1",
+    "ragas_version": "0.4.3"
+  }
+}
