@@ -1,19 +1,25 @@
-"""TODO: turn a results file into an exit code.
+"""Turn an eval results file into an exit code, so a bad run blocks the merge.
 
-`make gate` must fail for four different reasons, because they are four different
-bugs:
+`make gate` compares a new results file with the committed baseline and fails for
+four different reasons, because they are four different bugs:
 
-  1. an **absolute bar** breach — the system isn't good enough, full stop;
-  2. a **regression** against the committed baseline beyond `TOLERANCE` — a bar alone
-     lets you rot from 0.94 to 0.86 with every PR passing;
-  3. a **per-slice** regression — overall 0.86 can hide the unanswerable slice
-     collapsing from 1.00 to 0.40, or a slice disappearing entirely;
-  4. **instrument drift** — a different judge model, temperature or RAGAS version
-     means the numbers are not comparable. That is a re-baseline, and it belongs in
-     a reviewed commit.
+  1. an **absolute bar** breach: the system isn't good enough, whatever the
+     baseline says (`check_bars`);
+  2. a **regression** against the baseline beyond `TOLERANCE`: a bar alone would
+     let scores rot from 0.94 to 0.86 with every PR passing (`check_regressions`);
+  3. a **per-slice** regression: an overall 0.86 can hide the unanswerable slice
+     collapsing from 1.00 to 0.40, or a slice disappearing entirely
+     (`check_regressions`);
+  4. **instrument drift**: a different judge model, temperature or RAGAS version
+     means the numbers can't be compared. The gate then skips the comparison and
+     asks for a re-baseline in a reviewed commit (`check_instrument`).
 
-Everything here is pure logic over two JSON files: no model, no network, no excuse
-not to run it on every push.
+A report with no scores fails too, so an empty file can't pass by accident.
+`gate` collects every reason, and `diff_table` shows each metric next to its
+baseline for the reviewer.
+
+Everything here is pure logic over two JSON files: no model and no network, so
+it can run on every push.
 """
 
 from __future__ import annotations
@@ -68,14 +74,6 @@ def check_instrument(run: Run, baseline: Run) -> list[str]:
 def check_regressions(
     run: Run, baseline: Run, tolerance: float = TOLERANCE
 ) -> list[str]:
-    """TODO 4: overall AND per-slice regressions beyond the tolerance.
-
-    Also catch a slice that disappeared, and mark a collapse (dropping under
-    COLLAPSE_FLOOR from above it) so nobody mistakes it for drift.
-
-    The baseline decides what must exist, so only its slices and metrics are
-    checked. Anything new in the run has nothing to regress from and passes.
-    """
     problems = []
     for metric in sorted(baseline.overall):
         if metric not in run.overall:
@@ -131,17 +129,69 @@ def gate(run: Run, baseline: Run, tolerance: float = TOLERANCE) -> list[str]:
 
 
 def diff_table(run: Run, baseline: Run, tolerance: float = TOLERANCE) -> str:
-    """TODO 6: base / now / delta / status per metric and per slice.
+    lines = [f"{'Metric':<34} {'Baseline':<10} {'Run':<10} {'Delta':<10} Status"]
+    for metric in sorted(baseline.overall.keys() | run.overall.keys()):
+        baseline_value = baseline.overall.get(metric)
+        run_value = run.overall.get(metric)
+        lines.append(_row(f"OVERALL {metric}", baseline_value, run_value, tolerance))
 
-    A failing gate is a code-review artifact. Statuses: "REGRESSED",
-    "ok (within tolerance)" for a dip inside the noise floor, "ok" otherwise.
-    """
-    raise NotImplementedError
+    for name in sorted(baseline.by_slice.keys() | run.by_slice.keys()):
+        base_scores = baseline.by_slice.get(name, {})
+        run_scores = run.by_slice.get(name, {})
+        for metric in sorted(base_scores.keys() | run_scores.keys()):
+            lines.append(
+                _row(
+                    f"SLICE {name} {metric}",
+                    base_scores.get(metric),
+                    run_scores.get(metric),
+                    tolerance,
+                )
+            )
+    return "\n".join(lines)
+
+
+def _row(
+    metric: str,
+    baseline_value: float | None,
+    run_value: float | None,
+    tolerance: float,
+) -> str:
+    status = _status(baseline_value, run_value, tolerance)
+    both = baseline_value is not None and run_value is not None
+    base_txt = f"{baseline_value:<10.3f}" if baseline_value is not None else "-"
+    now_txt = f"{run_value:<10.3f}" if run_value is not None else "-"
+    delta_txt = f"{run_value - baseline_value:<+10.3f}" if both else "-"
+    return f"{metric:<34} {base_txt:<10} {now_txt:<10} {delta_txt:<10} {status}"
+
+
+def _status(base: float | None, now: float | None, tolerance: float) -> str:
+    if now is None:
+        return "MISSING"
+    if base is None:
+        return "NEW"
+    delta = now - base
+    if delta < -tolerance:
+        return "REGRESSED"
+    if delta < 0:
+        return "ok (within tolerance)"
+    return "ok"
 
 
 def main(argv: list[str] | None = None) -> int:
-    """TODO 7: print the table, then the reasons. 0 = pass, 1 = fail, 2 = bad usage."""
-    raise NotImplementedError
+    if argv is None:
+        argv = sys.argv[1:]
+    if len(argv) != 2:
+        print("Usage: python gate.py <run_file> <baseline_file>")
+        return 2
+    run = Run.load(argv[0])
+    baseline = Run.load(argv[1])
+    problems = gate(run, baseline)
+    print(diff_table(run, baseline))
+    if problems:
+        print("gate FAILED:")
+        return 1
+    print("gate passed")
+    return 0
 
 
 if __name__ == "__main__":
