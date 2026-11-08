@@ -16,6 +16,7 @@ Reference: ../../../after/src/assistant/evals.py
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -72,6 +73,19 @@ class Judge(Protocol):
 AnswerFn = Callable[[str], tuple[str, list[str]]]
 
 
+def words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9-]+", text.lower()) if len(w) > 3}
+
+
+def _overlap(text: str, contexts: list[str]) -> float:
+    """Share of `text`'s words that appear in the joined contexts."""
+    t = words(text)
+    c = words(" ".join(contexts))
+    if not t or not c:
+        return 0.0
+    return len(t & c) / len(t)
+
+
 class KeywordJudge:
     """TODO 1: a deterministic stand-in for an LLM judge, honestly named.
 
@@ -80,10 +94,10 @@ class KeywordJudge:
     """
 
     def faithfulness(self, question: str, answer: str, contexts: list[str]) -> float:
-        raise NotImplementedError
+        return _overlap(answer, contexts)
 
     def context_recall(self, question: str, contexts: list[str], reference: str) -> float:
-        raise NotImplementedError
+        return _overlap(reference, contexts)
 
 
 def is_abstention(answer: str) -> bool:
