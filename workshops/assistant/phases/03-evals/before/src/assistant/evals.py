@@ -16,6 +16,7 @@ Reference: ../../../after/src/assistant/evals.py
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -72,38 +73,63 @@ class Judge(Protocol):
 AnswerFn = Callable[[str], tuple[str, list[str]]]
 
 
+def words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9-]+", text.lower()) if len(w) > 3}
+
+
+def _overlap(text: str, contexts: list[str]) -> float:
+    """Share of `text`'s words that appear in the joined contexts."""
+    t = words(text)
+    c = words(" ".join(contexts))
+    if not t or not c:
+        return 0.0
+    return len(t & c) / len(t)
+
+
 class KeywordJudge:
-    """TODO 1: a deterministic stand-in for an LLM judge, honestly named.
-
-    Lexical overlap only — good enough to exercise the harness offline, and never
-    something you report as "faithfulness" to anyone.
-    """
-
     def faithfulness(self, question: str, answer: str, contexts: list[str]) -> float:
-        raise NotImplementedError
+        return _overlap(answer, contexts)
 
     def context_recall(self, question: str, contexts: list[str], reference: str) -> float:
-        raise NotImplementedError
+        return _overlap(reference, contexts)
 
 
 def is_abstention(answer: str) -> bool:
-    """TODO 2: does the answer contain any ABSTENTION_MARKERS?"""
-    raise NotImplementedError
+    return any(marker.lower() in answer.lower() for marker in ABSTENTION_MARKERS)
 
 
 def score_row(row: GoldenRow, answer: str, contexts: list[str], judge: Judge) -> ScoredRow:
-    """TODO 3: score one row — abstention rows never reach the judge (`judged=False`)."""
-    raise NotImplementedError
+    refused = is_abstention(answer)
+    if row.expects_abstention:
+        if refused:
+            return ScoredRow(row.id, row.slice, {"faithfulness": 1.0, "context_recall": 1.0}, False)
+        else:
+            return ScoredRow(row.id, row.slice, {"faithfulness": 0.0, "context_recall": 0.0}, False)
+    scores = {
+        "faithfulness": judge.faithfulness(row.question, answer, contexts),
+        "context_recall": judge.context_recall(row.question, contexts, row.ground_truth),
+    }
+    return ScoredRow(row.id, row.slice, scores, True)
 
 
 def mean_scores(rows: Iterable[ScoredRow]) -> dict[str, float]:
-    """TODO 4: mean per metric, 3 dp. Empty input is 0.0, not a crash."""
-    raise NotImplementedError
+    rows = list(rows)
+    scores = {}
+    if not rows:
+        return dict.fromkeys(METRICS, 0.0)
+    for row in rows:
+        for metric, score in row.scores.items():
+            scores[metric] = scores.get(metric, 0.0) + score
+    return {metric: round(scores[metric] / len(rows), 3) for metric in scores}
 
 
 def run_suite(rows: list[GoldenRow], answer_fn: AnswerFn, judge: Judge) -> SuiteResult:
-    """TODO 5: score everything, then aggregate overall AND per slice."""
-    raise NotImplementedError
+    scored = [score_row(row, *answer_fn(row.question), judge) for row in rows]
+    overall = mean_scores(scored)
+    by_slice = {
+        row.slice: mean_scores([r for r in scored if r.slice == row.slice]) for row in scored
+    }
+    return SuiteResult(overall, by_slice, scored)
 
 
 def gate(
@@ -112,13 +138,20 @@ def gate(
     bars: dict[str, float] | None = None,
     tolerance: float = 0.03,
 ) -> list[str]:
-    """TODO 6: reasons to block the merge; empty list means it may land.
-
-    Absolute bars catch a system that isn't good enough, baseline deltas catch slow
-    rot, per-slice deltas catch the failure the average hides. Mark a slice that fell
-    under COLLAPSE_FLOOR from above it — that is never noise.
-    """
-    raise NotImplementedError
+    blocks = []
+    for name, base_scores in baseline.items():
+        for metric, before in base_scores.items():
+            now = result.by_slice.get(name, {}).get(metric, 0.0)
+            if now < round(before - tolerance, 3):
+                blocks.append(f"{name} {metric} {now} < baseline {before}")
+            if before > COLLAPSE_FLOOR and now < COLLAPSE_FLOOR:
+                blocks.append(f"{name} {metric} COLLAPSED: {before} → {now}")
+    bars = bars or BARS
+    for metric, bar in bars.items():
+        now_overall = result.overall.get(metric, 0.0)
+        if now_overall < bar:
+            blocks.append(f"overall {metric} {now_overall} < bar {bar}")
+    return blocks
 
 
 # --- trajectory: score what the agent DID, not only its final message --------
