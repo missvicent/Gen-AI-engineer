@@ -231,5 +231,14 @@ def cohen_kappa(human: list[str], judge: list[str], labels: tuple[str, ...]) -> 
 
 
 def format_table(result: SuiteResult) -> str:
-    """TODO 9: one line per slice, then an OVERALL line. Read this, not the average."""
-    raise NotImplementedError
+    """Plain-text table: a header, one line per slice, then an OVERALL line.
+
+    One column per metric in `METRICS`, scores to 3 dp. Read the slices, not the
+    average: a strong overall can hide one slice that collapsed.
+    """
+    lines = []
+    lines.append(f"{'slice':<14}" + "".join(f"{m:>16}" for m in METRICS))
+    for name, scores in result.by_slice.items():
+        lines.append(f"{name:<14}" + "".join(f"{scores[m]:>16.3f}" for m in METRICS))
+    lines.append(f"{'OVERALL':<14}" + "".join(f"{result.overall[m]:>16.3f}" for m in METRICS))
+    return "\n".join(lines)
