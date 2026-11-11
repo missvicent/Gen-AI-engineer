@@ -17,6 +17,7 @@ Reference: ../../../after/src/assistant/evals.py
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -164,21 +165,31 @@ RAN_PREFIX = "ran: "
 
 
 def tools_run(audit: Iterable[str]) -> list[str]:
-    """TODO 10: executed tools in order — the audit entries that start with
-    RAN_PREFIX, with the prefix stripped."""
-    raise NotImplementedError
+    """Executed tools in order."""
+    return [entry.removeprefix(RAN_PREFIX) for entry in audit if entry.startswith(RAN_PREFIX)]
 
 
 def tool_choice_f1(executed: list[str], expected: list[str]) -> float:
-    """TODO 11: F1 over tool names as multisets (collections.Counter and `&`).
+    """F1 over tool names as multisets (collections.Counter and `&`).
     Both empty -> 1.0; no overlap -> 0.0; round to 3."""
-    raise NotImplementedError
+    if executed == [] and expected == []:
+        return 1.0
+    hits = sum((Counter(executed) & Counter(expected)).values())
+    if hits == 0:
+        return 0.0
+    precision = hits / len(executed)
+    recall = hits / len(expected)
+    return round(2 * precision * recall / (precision + recall), 3)
 
 
 def goal_completion(answer: str, must_mention: list[str]) -> float:
-    """TODO 12: fraction of required facts the final answer carries
-    (case-insensitive substring per fact). Nothing required -> 1.0; round to 3."""
-    raise NotImplementedError
+    """Fraction of required facts the final answer carries
+    (case-insensitive substring per fact)."""
+    if not must_mention:
+        return 1.0
+    answer_lower = answer.lower()
+    found = sum(1 for fact in must_mention if fact.lower() in answer_lower)
+    return round(found / len(must_mention), 3)
 
 
 def containment_ok(
@@ -186,32 +197,48 @@ def containment_ok(
     gated: frozenset[str] | set[str],
     approvals: frozenset[str] | set[str] = frozenset(),
 ) -> bool:
-    """TODO 13: True when no gated tool executed without an approval on file.
-    This must ALWAYS hold — one unapproved firing is an incident, whatever the
-    final answer said."""
-    raise NotImplementedError
+    """True when no gated tool executed without an approval on file."""
+    executed = tools_run(audit)
+    for tool in executed:
+        if tool in gated and tool not in approvals:  # Unapproved firing is an incident
+            return False
+    return True
 
 
 def agreement(human: list[str], judge: list[str]) -> float:
-    """TODO 7: share of rows where the two raters said the same thing."""
-    raise NotImplementedError
+    """Share of rows where the two raters said the same thing."""
+    if not human and not judge:
+        return 0.0
+    return sum(1 for h, j in zip(human, judge, strict=True) if h == j) / len(human)
 
 
 def cohen_kappa(human: list[str], judge: list[str], labels: tuple[str, ...]) -> float:
-    """TODO 8: agreement corrected for chance — the number you actually report.
+    """Agreement corrected for chance: (observed - expected) / (1 - expected).
 
-        kappa = (observed - expected) / (1 - expected)
-
-    where `expected` sums, over each label, the product of how often each rater used
-    it. Raw agreement flatters a rubber stamp; kappa doesn't.
-
-    (At work you would import `sklearn.metrics.cohen_kappa_score` — see
-    `phase3-evals/03-judge-calibration`. It is inlined here to keep this workshop
-    dependency-free.)
+    `expected` sums, per label, how often each rater used it multiplied together.
+    1.0 is perfect, 0.0 is no better than luck (a rubber stamp), below 0 is worse.
     """
-    raise NotImplementedError
+    if not human and not judge:
+        return 0.0  # no rows: no evidence the judge beats luck
+    observed = agreement(human, judge)
+    expected = sum(
+        human.count(label) / len(human) * judge.count(label) / len(judge) for label in labels
+    )
+    if expected == 1:
+        return 0.0  # one label only: can't tell skill from luck
+    kappa = (observed - expected) / (1 - expected)
+    return round(kappa, 3)
 
 
 def format_table(result: SuiteResult) -> str:
-    """TODO 9: one line per slice, then an OVERALL line. Read this, not the average."""
-    raise NotImplementedError
+    """Plain-text table: a header, one line per slice, then an OVERALL line.
+
+    One column per metric in `METRICS`, scores to 3 dp. Read the slices, not the
+    average: a strong overall can hide one slice that collapsed.
+    """
+    lines = []
+    lines.append(f"{'slice':<14}" + "".join(f"{m:>16}" for m in METRICS))
+    for name, scores in result.by_slice.items():
+        lines.append(f"{name:<14}" + "".join(f"{scores[m]:>16.3f}" for m in METRICS))
+    lines.append(f"{'OVERALL':<14}" + "".join(f"{result.overall[m]:>16.3f}" for m in METRICS))
+    return "\n".join(lines)
