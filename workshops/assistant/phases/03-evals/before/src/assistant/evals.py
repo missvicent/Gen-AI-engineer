@@ -209,22 +209,25 @@ def agreement(human: list[str], judge: list[str]) -> float:
     """Share of rows where the two raters said the same thing."""
     if not human and not judge:
         return 0.0
-    return round(sum(1 for h, j in zip(human, judge, strict=True) if h == j) / len(human), 3)
+    return sum(1 for h, j in zip(human, judge, strict=True) if h == j) / len(human)
 
 
 def cohen_kappa(human: list[str], judge: list[str], labels: tuple[str, ...]) -> float:
-    """TODO 8: agreement corrected for chance — the number you actually report.
+    """Agreement corrected for chance: (observed - expected) / (1 - expected).
 
-        kappa = (observed - expected) / (1 - expected)
-
-    where `expected` sums, over each label, the product of how often each rater used
-    it. Raw agreement flatters a rubber stamp; kappa doesn't.
-
-    (At work you would import `sklearn.metrics.cohen_kappa_score` — see
-    `phase3-evals/03-judge-calibration`. It is inlined here to keep this workshop
-    dependency-free.)
+    `expected` sums, per label, how often each rater used it multiplied together.
+    1.0 is perfect, 0.0 is no better than luck (a rubber stamp), below 0 is worse.
     """
-    raise NotImplementedError
+    if not human and not judge:
+        return 0.0  # no rows: no evidence the judge beats luck
+    observed = agreement(human, judge)
+    expected = sum(
+        human.count(label) / len(human) * judge.count(label) / len(judge) for label in labels
+    )
+    if expected == 1:
+        return 0.0  # one label only: can't tell skill from luck
+    kappa = (observed - expected) / (1 - expected)
+    return round(kappa, 3)
 
 
 def format_table(result: SuiteResult) -> str:
