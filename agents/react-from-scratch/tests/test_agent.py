@@ -36,6 +36,23 @@ def test_unknown_tool_becomes_an_observation_not_a_crash():
     assert out == "recovered"
 
 
+def test_tool_error_becomes_an_observation():
+    seq = [
+        Decision(is_final=False, tool="calc", args={"expression": "2 +"}),
+        Decision(is_final=True, answer="recovered"),
+    ]
+    it = iter(seq)
+
+    def decide(goal, state):
+        if state:  # second call: the failed step must be in the history
+            _, result = state[-1]
+            assert result.startswith("error: SyntaxError")
+        return next(it)
+
+    out = run_agent("x", {"calc": calculator}, decide)
+    assert out == "recovered"
+
+
 def test_calculator_does_arithmetic_and_nothing_else():
     # The expression comes from the model: it is untrusted input at a tool
     # boundary. Arithmetic must work; anything else must be refused, not run.
