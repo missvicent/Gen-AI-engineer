@@ -25,6 +25,7 @@ dependencies = [
     "opentelemetry-distro>=0.65b0",
     "opentelemetry-exporter-otlp>=1.44.0",
     "scikit-learn>=1.5,<2",
+    "httpx>=0.28.1",
 ]
 
 [dependency-groups]
