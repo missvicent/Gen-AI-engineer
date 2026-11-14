@@ -47,7 +47,7 @@ def _env(name: str, default: str = "") -> str:
 PROVIDERS: dict[str, Provider] = {
     "gpt": Provider(None, _env("OPENAI_API_KEY"), "gpt-5.5"),
     "local": Provider(_env("BASE_URL"), _env("OLLAMA_API_KEY"), "qwen3.5:9b"),
-    "claude": Provider(None, _env("ANTHROPIC_API_KEY"), "claude-sonnet-4-6"),
+    "claude": Provider(None, _env("ANTHROPIC_API_KEY"), "claude-sonnet-5-5"),
     "gemini": Provider(None, _env("GEMINI_API_KEY"), "gemini-2.5-flash"),
     "mlx": Provider(None, _env("MLX_API_KEY"), "mlx-01-flash"),
 }
@@ -63,6 +63,12 @@ def _anthropic_client(p: Provider) -> Any:
     return Anthropic(api_key=p.api_key)
 
 
+def _temperature(p: Provider, temperature: float) -> dict[str, float]:
+    """OpenAI reasoning models (gpt-5.x) reject any temperature but the default,
+    so send none to them."""
+    return {} if p.model.startswith("gpt-5") else {"temperature": temperature}
+
+
 def complete(prompt: str, provider: str = "local", temperature: float = 0.2) -> str:
     p = PROVIDERS[provider]
     if provider == "claude":
@@ -76,7 +82,7 @@ def complete(prompt: str, provider: str = "local", temperature: float = 0.2) -> 
     else:
         resp = _openai_client(p).chat.completions.create(
             model=p.model,
-            temperature=temperature,
+            **_temperature(p, temperature),
             messages=[{"role": "user", "content": prompt}],
         )
         return resp.choices[0].message.content or ""
@@ -93,12 +99,12 @@ def stream(
             max_tokens=1024,
             temperature=temperature,
             messages=[{"role": "user", "content": prompt}],
-        ) as stream:
-            yield from stream.text_stream()
+        ) as s:
+            yield from s.text_stream
     else:
         chunks = _openai_client(p).chat.completions.create(
             model=p.model,
-            temperature=temperature,
+            **_temperature(p, temperature),
             messages=[{"role": "user", "content": prompt}],
             stream=True,
         )
@@ -112,10 +118,10 @@ def call_tool(
     tools: list[dict[str, Any]],
     provider: str = "local",
     temperature: float = 0.2,
-) -> ToolCall | str:
+) -> list[ToolCall] | str:
     """offer provider-neutral tools ({name, description, parameters}),
-    adapt them to each wire format, and normalize the reply: a ToolCall if the
-    model picked a tool, its plain text if it didn't."""
+    adapt them to each wire format, and normalize the reply: every ToolCall the
+    model made (it can ask for several at once), or its plain text if none."""
     p = PROVIDERS[provider]
     if provider == "claude":
         resp = _anthropic_client(p).messages.create(
@@ -132,24 +138,28 @@ def call_tool(
             ],
             messages=[{"role": "user", "content": prompt}],
         )
-        for block in resp.content:
-            if block.type == "tool_use":
-                return ToolCall(name=block.name, args=dict(block.input))
+        calls = [
+            ToolCall(name=block.name, args=dict(block.input))
+            for block in resp.content
+            if block.type == "tool_use"
+        ]
+        if calls:
+            return calls
         return "".join(block.text for block in resp.content if block.type == "text")
     else:
         resp = _openai_client(p).chat.completions.create(
             model=p.model,
-            temperature=temperature,
+            **_temperature(p, temperature),
             messages=[{"role": "user", "content": prompt}],
             tools=[{"type": "function", "function": tool} for tool in tools],
             tool_choice="auto",
         )
         msg = resp.choices[0].message
         if msg.tool_calls:
-            call = msg.tool_calls[0]
-            return ToolCall(
-                name=call.function.name, args=json.loads(call.function.arguments)
-            )
+            return [
+                ToolCall(name=c.function.name, args=json.loads(c.function.arguments))
+                for c in msg.tool_calls
+            ]
         return msg.content or ""
 
 
@@ -163,6 +173,11 @@ def extract(
     Anthropic: one forced tool whose input_schema IS the schema. Raise
     ValueError if the reply is missing any of schema["required"]."""
     p = PROVIDERS[provider]
+    full = {
+        "type": "object",
+        "properties": schema,
+        "required": list(schema.keys()),
+    }
     if provider == "claude":
         resp = _anthropic_client(p).messages.create(
             model=p.model,
@@ -173,11 +188,7 @@ def extract(
                 {
                     "name": "extract",
                     "description": "Return the extraction.",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": schema,
-                        "required": schema.keys(),
-                    },
+                    "input_schema": full,
                 }
             ],
             tool_choice={"type": "tool", "name": "extract"},
@@ -186,10 +197,10 @@ def extract(
     else:
         resp = _openai_client(p).chat.completions.create(
             model=p.model,
-            temperature=temperature,
+            **_temperature(p, temperature),
             response_format={
-                "type": "json_object",
-                "json_schema": {"name": "extraction", "schema": schema},
+                "type": "json_schema",
+                "json_schema": {"name": "extraction", "schema": full},
             },
             messages=[{"role": "user", "content": prompt}],
         )
