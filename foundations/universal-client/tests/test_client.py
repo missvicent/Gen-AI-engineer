@@ -70,12 +70,13 @@ def test_stream_openai_skips_empty_chunks(openai):
     assert list(stream("q", provider="gpt")) == ["hi"]
 
 
-def test_call_tool_openai_parses_json_arguments(openai):
-    fn = NS(name="calc", arguments='{"expression": "1+1"}')
-    openai.reply = NS(content=None, tool_calls=[NS(function=fn)])
-    assert call_tool("q", SPECS, provider="gpt") == ToolCall(
-        "calc", {"expression": "1+1"}
-    )
+def test_call_tool_openai_keeps_every_call_and_parses_json(openai):
+    fns = [NS(name="calc", arguments=f'{{"expression": "{e}"}}') for e in "12"]
+    openai.reply = NS(content=None, tool_calls=[NS(function=f) for f in fns])
+    assert call_tool("q", SPECS, provider="gpt") == [
+        ToolCall("calc", {"expression": "1"}),
+        ToolCall("calc", {"expression": "2"}),
+    ]
     assert openai.calls[0]["tools"] == [{"type": "function", "function": SPECS[0]}]
 
 
@@ -84,9 +85,9 @@ def test_call_tool_claude_finds_tool_after_text(anthropic):
         NS(type="text", text="let me check"),
         NS(type="tool_use", name="calc", input={"expression": "1+1"}),
     ]
-    assert call_tool("q", SPECS, provider="claude") == ToolCall(
-        "calc", {"expression": "1+1"}
-    )
+    assert call_tool("q", SPECS, provider="claude") == [
+        ToolCall("calc", {"expression": "1+1"})
+    ]
     sent = anthropic.calls[0]["tools"][0]
     assert sent == {
         "name": "calc",

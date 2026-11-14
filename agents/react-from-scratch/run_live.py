@@ -3,12 +3,12 @@ from typing import Any
 from dotenv import load_dotenv
 from react_from_scratch.agent import Decision, run_agent
 from react_from_scratch.tools import TOOL_SPECS, TOOLS
-from src import ToolCall, call_tool
+from src import call_tool
 
 load_dotenv()
 
 # Which universal-client provider drives the agent: "claude", "gpt", "local".
-PROVIDER = "gpt"
+PROVIDER = "local"
 
 # decide() treats "plain text, no tool call" as the final answer, so the
 # model must be told that rule on every turn.
@@ -31,8 +31,11 @@ def render(goal: str, history: list[tuple[Decision, Any]]) -> str:
 def decide(goal: str, history: list[tuple[Decision, Any]]) -> Decision:
     prompt = render(goal, history)
     reply = call_tool(prompt, TOOL_SPECS, provider=PROVIDER)
-    if isinstance(reply, ToolCall):
-        return Decision(is_final=False, tool=reply.name, args=reply.args)
+    if isinstance(reply, list):
+        # The loop runs one tool per step; extra parallel calls are asked again
+        # next turn, with this step's result in the history.
+        call = reply[0]
+        return Decision(is_final=False, tool=call.name, args=call.args)
     return Decision(is_final=True, answer=reply)
 
 

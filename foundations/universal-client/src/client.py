@@ -47,7 +47,7 @@ def _env(name: str, default: str = "") -> str:
 PROVIDERS: dict[str, Provider] = {
     "gpt": Provider(None, _env("OPENAI_API_KEY"), "gpt-5.5"),
     "local": Provider(_env("BASE_URL"), _env("OLLAMA_API_KEY"), "qwen3.5:9b"),
-    "claude": Provider(None, _env("ANTHROPIC_API_KEY"), "claude-sonnet-4-6"),
+    "claude": Provider(None, _env("ANTHROPIC_API_KEY"), "claude-sonnet-5-5"),
     "gemini": Provider(None, _env("GEMINI_API_KEY"), "gemini-2.5-flash"),
     "mlx": Provider(None, _env("MLX_API_KEY"), "mlx-01-flash"),
 }
@@ -118,10 +118,10 @@ def call_tool(
     tools: list[dict[str, Any]],
     provider: str = "local",
     temperature: float = 0.2,
-) -> ToolCall | str:
+) -> list[ToolCall] | str:
     """offer provider-neutral tools ({name, description, parameters}),
-    adapt them to each wire format, and normalize the reply: a ToolCall if the
-    model picked a tool, its plain text if it didn't."""
+    adapt them to each wire format, and normalize the reply: every ToolCall the
+    model made (it can ask for several at once), or its plain text if none."""
     p = PROVIDERS[provider]
     if provider == "claude":
         resp = _anthropic_client(p).messages.create(
@@ -138,9 +138,13 @@ def call_tool(
             ],
             messages=[{"role": "user", "content": prompt}],
         )
-        for block in resp.content:
-            if block.type == "tool_use":
-                return ToolCall(name=block.name, args=dict(block.input))
+        calls = [
+            ToolCall(name=block.name, args=dict(block.input))
+            for block in resp.content
+            if block.type == "tool_use"
+        ]
+        if calls:
+            return calls
         return "".join(block.text for block in resp.content if block.type == "text")
     else:
         resp = _openai_client(p).chat.completions.create(
@@ -152,10 +156,10 @@ def call_tool(
         )
         msg = resp.choices[0].message
         if msg.tool_calls:
-            call = msg.tool_calls[0]
-            return ToolCall(
-                name=call.function.name, args=json.loads(call.function.arguments)
-            )
+            return [
+                ToolCall(name=c.function.name, args=json.loads(c.function.arguments))
+                for c in msg.tool_calls
+            ]
         return msg.content or ""
 
 
