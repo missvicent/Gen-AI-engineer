@@ -30,9 +30,7 @@ def render(goal: str, history: list[tuple[Decision, Any]]) -> str:
 
 def decide(goal: str, history: list[tuple[Decision, Any]]) -> Decision:
     prompt = render(goal, history)
-    reply = call_tool(
-        prompt, TOOL_SPECS, provider=PROVIDER, temperature=1
-    )  # TEMP: gpt-5.5 only accepts 1
+    reply = call_tool(prompt, TOOL_SPECS, provider=PROVIDER)
     if isinstance(reply, ToolCall):
         return Decision(is_final=False, tool=reply.name, args=reply.args)
     return Decision(is_final=True, answer=reply)

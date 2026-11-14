@@ -63,6 +63,12 @@ def _anthropic_client(p: Provider) -> Any:
     return Anthropic(api_key=p.api_key)
 
 
+def _temperature(p: Provider, temperature: float) -> dict[str, float]:
+    """OpenAI reasoning models (gpt-5.x) reject any temperature but the default,
+    so send none to them."""
+    return {} if p.model.startswith("gpt-5") else {"temperature": temperature}
+
+
 def complete(prompt: str, provider: str = "local", temperature: float = 0.2) -> str:
     p = PROVIDERS[provider]
     if provider == "claude":
@@ -76,7 +82,7 @@ def complete(prompt: str, provider: str = "local", temperature: float = 0.2) -> 
     else:
         resp = _openai_client(p).chat.completions.create(
             model=p.model,
-            temperature=temperature,
+            **_temperature(p, temperature),
             messages=[{"role": "user", "content": prompt}],
         )
         return resp.choices[0].message.content or ""
@@ -93,12 +99,12 @@ def stream(
             max_tokens=1024,
             temperature=temperature,
             messages=[{"role": "user", "content": prompt}],
-        ) as stream:
-            yield from stream.text_stream()
+        ) as s:
+            yield from s.text_stream
     else:
         chunks = _openai_client(p).chat.completions.create(
             model=p.model,
-            temperature=temperature,
+            **_temperature(p, temperature),
             messages=[{"role": "user", "content": prompt}],
             stream=True,
         )
@@ -139,7 +145,7 @@ def call_tool(
     else:
         resp = _openai_client(p).chat.completions.create(
             model=p.model,
-            temperature=temperature,
+            **_temperature(p, temperature),
             messages=[{"role": "user", "content": prompt}],
             tools=[{"type": "function", "function": tool} for tool in tools],
             tool_choice="auto",
@@ -163,6 +169,11 @@ def extract(
     Anthropic: one forced tool whose input_schema IS the schema. Raise
     ValueError if the reply is missing any of schema["required"]."""
     p = PROVIDERS[provider]
+    full = {
+        "type": "object",
+        "properties": schema,
+        "required": list(schema.keys()),
+    }
     if provider == "claude":
         resp = _anthropic_client(p).messages.create(
             model=p.model,
@@ -173,11 +184,7 @@ def extract(
                 {
                     "name": "extract",
                     "description": "Return the extraction.",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": schema,
-                        "required": schema.keys(),
-                    },
+                    "input_schema": full,
                 }
             ],
             tool_choice={"type": "tool", "name": "extract"},
@@ -186,10 +193,10 @@ def extract(
     else:
         resp = _openai_client(p).chat.completions.create(
             model=p.model,
-            temperature=temperature,
+            **_temperature(p, temperature),
             response_format={
-                "type": "json_object",
-                "json_schema": {"name": "extraction", "schema": schema},
+                "type": "json_schema",
+                "json_schema": {"name": "extraction", "schema": full},
             },
             messages=[{"role": "user", "content": prompt}],
         )
