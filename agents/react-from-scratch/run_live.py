@@ -2,7 +2,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from react_from_scratch.agent import Decision, run_agent
-from react_from_scratch.tools import TOOL_SPECS, TOOLS
+from react_from_scratch.tools import TOOL_SPECS, TOOLS, with_retry
 from src import call_tool
 
 load_dotenv()
@@ -50,4 +50,4 @@ if __name__ == "__main__":
         print(f"{len(history) + 1}. {d.tool}({d.args})" if not d.is_final else "final")
         return d
 
-    print(run_agent(goal, TOOLS, logged_decide, max_steps=6))
+    print(run_agent(goal, TOOLS, with_retry(logged_decide, TOOL_SPECS), max_steps=6))
