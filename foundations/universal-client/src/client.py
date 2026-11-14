@@ -110,24 +110,23 @@ def stream(
 def call_tool(
     prompt: str,
     tools: list[dict[str, Any]],
-    p: str = "local",
+    provider: str = "local",
     temperature: float = 0.2,
 ) -> ToolCall | str:
     """offer provider-neutral tools ({name, description, parameters}),
     adapt them to each wire format, and normalize the reply: a ToolCall if the
     model picked a tool, its plain text if it didn't."""
-    p = PROVIDERS[p]
-    if p == "claude":
+    p = PROVIDERS[provider]
+    if provider == "claude":
         resp = _anthropic_client(p).messages.create(
             model=p.model,
             max_tokens=1024,
             temperature=temperature,
             tools=[
                 {
-                    "type": tool["type"],
+                    "input_schema": tool["parameters"],
                     "name": tool["name"],
                     "description": tool["description"],
-                    "parameters": tool["parameters"],
                 }
                 for tool in tools
             ],
@@ -136,7 +135,7 @@ def call_tool(
         for block in resp.content:
             if block.type == "tool_use":
                 return ToolCall(name=block.name, args=dict(block.input))
-            return "".join(block.text for block in resp.content if block.type == "text")
+        return "".join(block.text for block in resp.content if block.type == "text")
     else:
         resp = _openai_client(p).chat.completions.create(
             model=p.model,
@@ -148,7 +147,9 @@ def call_tool(
         msg = resp.choices[0].message
         if msg.tool_calls:
             call = msg.tool_calls[0]
-            return ToolCall(name=call.function.name, args=dict(call.function.arguments))
+            return ToolCall(
+                name=call.function.name, args=json.loads(call.function.arguments)
+            )
         return msg.content or ""
 
 
@@ -162,7 +163,7 @@ def extract(
     Anthropic: one forced tool whose input_schema IS the schema. Raise
     ValueError if the reply is missing any of schema["required"]."""
     p = PROVIDERS[provider]
-    if p == "claude":
+    if provider == "claude":
         resp = _anthropic_client(p).messages.create(
             model=p.model,
             max_tokens=1024,
