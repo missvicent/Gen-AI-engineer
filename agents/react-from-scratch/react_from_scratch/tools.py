@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 
-from .agent import Tool
+from .agent import Decider, Decision, Tool
 
 _OPS: dict[type[ast.AST], Callable[..., Any]] = {
     ast.Add: operator.add,
@@ -135,3 +135,56 @@ SEARCH_SPEC: dict[str, Any] = {
 
 TOOLS: dict[str, Tool] = {"calc": calculator, "search": search}
 TOOL_SPECS: list[dict[str, Any]] = [CALC_SPEC, SEARCH_SPEC]
+
+
+# JSON Schema type name -> Python type. Only what our specs use; add as needed.
+_JSON_TYPES: dict[str, type] = {"string": str}
+
+
+def validate(decision: Decision, specs: list[dict[str, Any]]) -> str | None:
+    """Check a tool call against the specs before it runs. Returns what's wrong,
+    worded for the model so it can fix the call, or None if the call is fine."""
+    by_name = {s["name"]: s for s in specs}
+    spec = by_name.get(decision.tool)
+    if spec is None:
+        return f"unknown tool {decision.tool!r}; available: {', '.join(by_name)}"
+    params = spec["parameters"]
+    props = params["properties"]
+    missing = [a for a in params.get("required", []) if a not in decision.args]
+    if missing:
+        return f"{spec['name']}: missing required args {missing}"
+    extra = [a for a in decision.args if a not in props]
+    if extra:
+        return f"{spec['name']}: unknown args {extra}; allowed: {list(props)}"
+    for arg, value in decision.args.items():
+        want = _JSON_TYPES.get(props[arg].get("type", ""))
+        if want and not isinstance(value, want):
+            return (
+                f"{spec['name']}: {arg} must be a {props[arg]['type']}, "
+                f"got {type(value).__name__}"
+            )
+    return None
+
+
+def with_retry(
+    decide: Decider, specs: list[dict[str, Any]], retries: int = 2
+) -> Decider:
+    """Wrap decide so a broken tool call gets fixed before it costs a loop step.
+
+    A bad call is never run: it goes back to the model as a pretend step with
+    the validate() error, and the model tries again, up to `retries` times.
+    After that the last call is returned as is, and the loop turns it into an
+    error result like any other failed tool. Final answers are not checked.
+    """
+
+    def retrying(goal: str, history: list[tuple[Decision, Any]]) -> Decision:
+        tried = list(history)  # never change the loop's own history
+        for _ in range(retries):
+            decision = decide(goal, tried)
+            error = None if decision.is_final else validate(decision, specs)
+            if error is None:
+                return decision
+            tried.append((decision, f"error: call not run, fix it: {error}"))
+        return decide(goal, tried)
+
+    return retrying
