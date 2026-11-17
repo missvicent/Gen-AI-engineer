@@ -49,14 +49,18 @@ def decide(goal: str, history: list[tuple[Decision, Any]]) -> Decision:
 
 
 if __name__ == "__main__":
-    goal = "What is 15% of Tokyo's population?"
+    goal = os.environ.get(
+        "GOAL", "Reply to note 2 saying I booked the dentist for Monday"
+    )
+    # Label the run: which tool's docstring the model can't see (if any).
+    print(f"blank: {BLANK or '(none)'}  goal: {goal}")
 
     def logged_decide(goal: str, history: list[tuple[Decision, Any]]) -> Decision:
-        # Print each step so the run can be written down (task 5).
+        # Print each step so the run can be written down (task 6).
         if history:
             print(f"   -> {str(history[-1][1])[:200]}")
         d = decide(goal, history)
         print(f"{len(history) + 1}. {d.tool}({d.args})" if not d.is_final else "final")
         return d
 
-    print(run_agent(goal, TOOLS, with_retry(logged_decide, TOOL_SPECS), max_steps=6))
+    print(run_agent(goal, TOOLS, logged_decide, max_steps=6))
