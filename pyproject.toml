@@ -57,6 +57,7 @@ pythonpath = [
     "evals/judge-calibration",
     "evals/ci-gate",
     "agents/react-from-scratch",
+    "agents/tools",
 ]
 # importlib mode lets same-named test files (test_integration.py, ...) coexist across lessons.
 addopts = "--import-mode=importlib"
