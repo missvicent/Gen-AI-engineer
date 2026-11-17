@@ -1,7 +1,7 @@
 """TODO: implement three tools to spec.
 
 - read_note(note_id): READ-ONLY. Validate input; return {"text": ...} or {"error": ...}.
-- draft_reply(note_id, tone): reversible; returns a draft, never sends.
+- draft_reply(note_id, body): reversible; saves a draft, never sends.
 - delete_note(note_id): IRREVERSIBLE — refuse unless the application has recorded
   a human approval for that note (see grant_approval below).
 
@@ -19,6 +19,12 @@ Reference: ../after/src/tools.py.
 from __future__ import annotations
 
 _NOTES: dict[str, str] = {"1": "buy milk", "2": "call dentist"}
+
+
+_DRAFT: dict[str, str] = {}
+
+
+_MAX_BODY = 2000
 
 # Human approvals on file, keyed by note id. The application writes here when a
 # person clicks approve; the model never sees this set or the granting function.
@@ -45,9 +51,42 @@ def read_note(note_id: str) -> dict:
     return {"text": _NOTES[note_id]}
 
 
-def draft_reply(note_id: str, tone: str = "friendly") -> dict:
-    raise NotImplementedError  # TODO 2
+def draft_reply(note_id: str, body: str) -> dict:
+    """Save a reply to a note as a draft. Use when the user wants to answer or
+    follow up on a note. It does NOT send anything: the draft is only saved,
+    and it can be rewritten later by calling this again.
+
+    Args:
+        note_id: the note to reply to, e.g. "1".
+        body: the full reply text, written by you, at most 2000 characters.
+    Returns {"draft": ..., "status": ...} or {"error": ...}.
+    """
+    note = read_note(note_id)
+    if "error" in note:
+        return note
+    if not body.strip():
+        return {"error": "body is empty"}
+    if len(body) > _MAX_BODY:
+        return {"error": f"Body is too long: {len(body)} characters, max {_MAX_BODY}"}
+    _DRAFT[note_id] = body
+    return {"draft": body, "status": "saved as draft, not sent"}
 
 
 def delete_note(note_id: str) -> dict:
-    raise NotImplementedError  # TODO 3: check _APPROVALS, consume on success
+    """Delete a note permanently. IRREVERSIBLE: use only when the user clearly
+    asks to delete a note, and a human must have approved this exact delete.
+
+    Args:
+        note_id: the note to delete, e.g. "1".
+    Refused unless the application has a human approval on file for this note.
+    No argument can skip that check; if refused, tell the user approval is needed.
+    Returns {"deleted": note_id} or {"error": ...}.
+    """
+    if note_id not in _APPROVALS:
+        return {"error": f"refused: no human approval on file for note {note_id!r}"}
+    note = read_note(note_id)
+    if "error" in note:
+        return note
+    del _NOTES[note_id]
+    _APPROVALS.discard(note_id)
+    return {"deleted": note_id}
