@@ -1,19 +1,25 @@
-"""TODO: implement three tools to spec.
+"""Three tools for a notes agent: read, draft, delete.
 
-- read_note(note_id): READ-ONLY. Validate input; return {"text": ...} or {"error": ...}.
-- draft_reply(note_id, body): reversible; saves a draft, never sends.
-- delete_note(note_id): IRREVERSIBLE — refuse unless the application has recorded
-  a human approval for that note (see grant_approval below).
+- read_note(note_id): read-only. Returns {"text": ...} or {"error": ...}.
+- draft_reply(note_id, body): reversible. Saves a draft, never sends.
+- delete_note(note_id): irreversible. Refused unless the application has
+  recorded a human approval for that note (see grant_approval below).
 
-Rules: the docstring says WHAT and WHEN (it's the model's only interface),
-type hints are the schema, validate every arg, and return errors as DATA.
+Rules: the docstring says WHAT and WHEN (the model's only interface), type
+hints are the schema, every argument is validated, and errors come back as
+data, never as exceptions.
 
-The one rule you cannot bend: approval is APPLICATION state, never a tool
-argument. The model fills every parameter in a tool signature — an
-`approve: bool` parameter is a gate the model can open itself.
+Approval is application state, never a tool argument. The model fills every
+parameter in a tool signature, so an `approve: bool` parameter would be a
+gate the model can open by itself.
 
-Then blank a docstring and watch an agent misuse the tool.
-Reference: ../after/src/tools.py.
+What the live runs showed (see MISUSE.md):
+- The docstring is the interface. Without draft_reply's docstring the model
+  filled `body` with the note's text instead of the user's message.
+- The result is a second interface. "saved as draft, not sent" told the
+  model afterwards what the docstring would have told it beforehand.
+- A docstring guides, only code protects. With or without delete_note's
+  docstring the model tried to delete; both times the approval check refused.
 """
 
 from __future__ import annotations
