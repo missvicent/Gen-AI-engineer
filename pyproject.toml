@@ -26,6 +26,8 @@ dependencies = [
     "opentelemetry-exporter-otlp>=1.44.0",
     "scikit-learn>=1.5,<2",
     "httpx>=0.28.1",
+    "langgraph>=0.6,<2",
+    "langgraph-checkpoint-sqlite>=2,<4",
 ]
 
 [dependency-groups]
@@ -58,6 +60,7 @@ pythonpath = [
     "evals/ci-gate",
     "agents/react-from-scratch",
     "agents/tools",
+    "agents/hitl",
 ]
 # importlib mode lets same-named test files (test_integration.py, ...) coexist across lessons.
 addopts = "--import-mode=importlib"
