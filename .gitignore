@@ -19,3 +19,7 @@ docs/superpowers/
 
 # Judged-tier output: produced fresh on every run, never committed
 evals/ci-gate/evals/judged-results.json
+
+# HITL lesson: saved pauses (checkpoints, Runner store)
+agents/hitl/.hitl.sqlite*
+agents/hitl/.hitl.json
