@@ -30,9 +30,9 @@ def build_graph(
     tools: dict[str, Callable[..., Any]],
     checkpointer: Any,
 ) -> Any:
-    from agent_tools.tools import grant_approval  # noqa: F401  (for approve)
-    from langgraph.graph import END, StateGraph  # noqa: F401
-    from langgraph.types import interrupt  # noqa: F401
+    from agent_tools.tools import grant_approval
+    from langgraph.graph import END, StateGraph
+    from langgraph.types import interrupt
 
     def decide_node(state: State) -> dict:
         goal = state["goal"]
@@ -62,10 +62,21 @@ def build_graph(
         return {"history": history + [{"tool": tool, "args": args, "result": result}]}
 
     def route(state: State) -> str:
-        # TODO 7: the conditional edge after decide: END, "approve" or "run_tool".
-        raise NotImplementedError
+        if "answer" in state:
+            return END
+        pending = state["pending"]
+        tool = pending["tool"]
+        if tool == "delete_note":
+            return "approve"
+        else:
+            return "run_tool"
 
-    # TODO 8: build the graph over State: add the three nodes, entry point
-    # "decide", add_conditional_edges("decide", route), approve -> run_tool,
-    # run_tool -> decide. Return graph.compile(checkpointer=checkpointer).
-    raise NotImplementedError
+    g = StateGraph(State)
+    g.add_node("decide", decide_node)
+    g.set_entry_point("decide")
+    g.add_conditional_edges("decide", route)
+    g.add_node("approve", approve_node)
+    g.add_node("run_tool", run_tool_node)
+    g.add_edge("approve", "run_tool")
+    g.add_edge("run_tool", "decide")
+    return g.compile(checkpointer=checkpointer)
