@@ -102,13 +102,13 @@ def approval_graph(checkpointer: Any, send: Callable[[str], None]) -> Any:
     from langgraph.graph import END, StateGraph
     from langgraph.types import interrupt
 
-    def draft(state):
+    def draft(state: State) -> dict:
         return {"email": f"re: {state['topic']}"}
 
-    def approve(state):
+    def approve(_state: State) -> dict:
         return {"approved": bool(interrupt("Send this email?"))}
 
-    def send_node(state: State):
+    def send_node(state: State) -> dict:
         if state["approved"]:
             send(state["email"])
         return {}
